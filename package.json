@@ -1,0 +1,29 @@
+{
+  "name": "aqueduct",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha -r ./node_modules/ts-node/register src/tests/**/*.ts",
+    "build": "rimraf ./build && webpack",
+    "tsc": "rimraf ./build && tsc -p ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/chai": "^4.2.4",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.12.5",
+    "@types/webpack": "^4.39.8",
+    "chai": "^4.2.0",
+    "mocha": "^6.2.2",
+    "mocha-webpack": "^1.1.0",
+    "rimraf": "^3.0.0",
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.4.1",
+    "typescript": "^3.6.4",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  },
+  "dependencies": {}
+}
