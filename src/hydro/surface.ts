@@ -1,4 +1,4 @@
-import { Expression, Var, variable, unit, num, DocXBuilder, fractionVariable, MathDefinitionBuilder, MathDeclarationBuilder, MathProcedureBuilder } from "docx";
+import { Expression, Var, variable, unit, num, fractionVariable, MathDefinitionBuilder, MathDeclarationBuilder, MathProcedureBuilder } from "docx";
 import { g } from "/constant";
 
 export abstract class Surface{

@@ -1,14 +1,13 @@
 import { 
     variable, fractionVariable, num, unit, 
-    condition, Expression, DocXBuilder, greaterEqual, less,
-    acos
+    condition, Expression, greaterEqual, less,
+    acos,
+    MathDeclarationBuilder, MathDefinitionBuilder, MathProcedureBuilder,
 } from "docx";
+import {pi} from "../constant";
 
 
-const pi = variable('π');
-pi.Value = Math.PI;
-
-abstract class Section {
+export abstract class Section {
     protected Q = variable('Q', { sub: 'a0', inform: '流量', unit: unit('m').pow(3).flatDiv(unit('s')) });
     protected A = variable('A', { inform: '过水断面面积', unit: unit('m').pow(2) });
     protected R = variable('R', { inform: '水力半径', unit: unit('m') });
@@ -89,37 +88,37 @@ abstract class Section {
         return this.R.Value;
     }
 
-    public makeDefinition(builder: DocXBuilder){
-        const para = builder.mathDefinitionBuilder();
-        para.formula(this.Q, this.QCalc);
-        para.formula(this.R, this.RCalc);
-        para.formula(this.A, this.ACalc);
-        para.formula(this.chi, this.ChiCalc);
+    public makeDefinition(builder: MathDefinitionBuilder){
+        builder.formula(this.Q, this.QCalc);
+        builder.formula(this.R, this.RCalc);
+        builder.formula(this.A, this.ACalc);
+        builder.formula(this.chi, this.ChiCalc);
     }
 
-    public makeDeclaration(builder: DocXBuilder){
-        const para = builder.mathDeclarationBuilder();
-        para.declare(this.Q);
-        para.declare(this._i);
-        para.declare(this._n);
-        para.declare(this.R);
-        para.declare(this.A);
-        para.declare(this.chi);
-        para.declare(this._h);
+    public makeDeclaration(builder: MathDeclarationBuilder){
+        builder.declare(this.Q);
+        builder.declare(this._i);
+        builder.declare(this._n);
+        builder.declare(this.R);
+        builder.declare(this.A);
+        builder.declare(this.chi);
+        builder.declare(this._h);
+        this.supplyDeclaration(builder);
     }
 
-    public makeProcedure(builder: DocXBuilder){
-        const para = builder.mathProcedureBuilder();
-        para.formula(this.chi, this.ChiCalc, false);
-        para.formula(this.A, this.ACalc, false);
-        para.formula(this.R, this.RCalc, false);
-        para.formula(this.Q, this.QCalc, false);
+    public makeProcedure(builder: MathProcedureBuilder){
+        builder.formula(this.chi, this.ChiCalc, false);
+        builder.formula(this.A, this.ACalc, false);
+        builder.formula(this.R, this.RCalc, false);
+        builder.formula(this.Q, this.QCalc, false);
     }
 
-}
+    protected supplyDefinition(builder: MathDefinitionBuilder): void{
+        builder.formula(this.A, this.ACalc);
+        builder.formula(this.chi, this.ChiCalc);
+    };
+    protected abstract supplyDeclaration(builder: MathDeclarationBuilder):void;
 
-export function makeDocX(){
-    return new DocXBuilder();
 }
 
 
@@ -139,6 +138,10 @@ export class UShell extends Section {
         this._r.Value = val;
     }
 
+    protected supplyDeclaration(builder: MathDeclarationBuilder){
+        builder.declare(this._r);
+    }
+
 }
 
 
@@ -150,6 +153,10 @@ export class Rectangle extends Section {
 
     set b(val: number) {
         this._b.Value = val;
+    }
+
+    protected supplyDeclaration(para: MathDeclarationBuilder){
+        para.declare(this._b);
     }
 
 }
@@ -168,6 +175,11 @@ export class Trapezoid extends Section {
 
     set m(val: number) {
         this._m.Value = val;
+    }
+
+    protected supplyDeclaration(para: MathDeclarationBuilder){
+        para.declare(this._b);
+        para.declare(this._m);
     }
 
 }
