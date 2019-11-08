@@ -1,185 +1,187 @@
-import { 
-    variable, fractionVariable, num, unit, 
-    condition, Expression, greaterEqual, less,
-    acos,
-    MathDeclarationBuilder, MathDefinitionBuilder, MathProcedureBuilder,
+import {
+    V, formula, mul, div, add, root, pow, unit, acos, sub,
+    condition, GE, LT, sin, Formula, FV
 } from "docx";
-import {pi} from "../constant";
+import { UNIT, CONST, solveByBisect} from "../common";
 
 
 export abstract class Section {
-    protected Q = variable('Q', { sub: 'a0', inform: '流量', unit: unit('m').pow(3).flatDiv(unit('s')) });
-    protected A = variable('A', { inform: '过水断面面积', unit: unit('m').pow(2) });
-    protected R = variable('R', { inform: '水力半径', unit: unit('m') });
-    protected chi = variable('χ', { inform: '湿周', unit: unit('m') });
-    protected _i = fractionVariable('i', { inform: '坡降' });
-    protected _n = variable('n', { inform: '过水断面糙率', precision: 3});
-    protected _h = variable('h', { inform: '水深', unit: unit('m') });
+    Q = V('Q').info('流量').unit(UNIT.m3_s);
+    n = V('n').info('糙率');
+    i = FV('i').info('底坡');
+    A = V('A').info('过水断面面积').unit(UNIT.m);
+    R = V('R').info('过水断面水力半径').unit(UNIT.m);
+    h = V('h').info('水深').unit(UNIT.m);
+    v = V('v').info('流速').unit(UNIT.m_s);
+    beta = V('β').info('深宽比');
 
-    protected QCalc: Expression = num(1).div(this._n).mul(this.A).mul(this.R.pow(num(2).div(num(3)))).mul(this._i.pow(num(1).div(num(2))));
-    protected RCalc: Expression = this.A.div(this.chi);
-    protected abstract ChiCalc: Expression;
-    protected abstract ACalc: Expression;
+    abstract hFormula: Formula;
+    abstract AFormula: Formula;
+    abstract RFormula: Formula;
+    vFormula = formula(
+        this.v,
+        div(this.Q, this.A)
+    )
+    QFormula = formula(
+        this.Q,
+        mul(div(1, this.n), this.A, pow(this.R, div(2, 3)), pow(this.i, div(1, 2)))
+    )
 
-    set i(val: number) {
-        this._i.Value = val;
+    abstract set w(val: number);
+
+    abstract initFindH(...nums: number[]);
+    abstract initFindW(...nums: number[]);
+
+    findH(Q: number){
+        return solveByBisect(0.1, 10, 0.001, (h)=>{
+            this.h.Value = h;
+            this.AFormula.calc();
+            this.RFormula.calc();
+            return Q - this.QFormula.calc();
+        })
     }
 
-    set iDen(val: number){
-        this._i.Den = val;
+    findW(Q: number, beta: number){
+        this.beta.Value = beta;
+        return solveByBisect(0.1, 10, 0.001, (w)=>{
+            this.w = w;
+            this.hFormula.calc();
+            this.AFormula.calc();
+            this.RFormula.calc();
+            return Q - this.QFormula.calc();
+        })
+    }
+}
+
+export class Rect extends Section {
+    b = V('b').info('矩形槽底宽').unit(UNIT.m);
+
+    set w(val: number){
+        this.b.Value = val;
     }
 
-    set n(val: number) {
-        this._n.Value = val;
+    initFindH(b: number){
+        this.b.val(b);
     }
 
-    set h(val: number) {
-        this._h.Value = val;
-    }
+    initFindW(){}
 
-    get h() {
-        return this._h.Value;
-    }
 
-    public calcH(Q: number): number {
-        let [left, right, delta] = [0, 10, 0];
-        let i = 0;
-        do {
-            if(i > 25){
-                throw Error('流量二分法计算迭代次数超过限制')
-            }
-            i += 1;
-
-            delta = Q - this.calcQ((left+right)/2)
-
-            if (delta < 0) {
-                right = (left + right) / 2;
-            } else {
-                left = (left + right) / 2;
-            }
-        } while (Math.abs(delta) > 0.0001)
-
-        return this.h;
-    }
-
-    public calcQ(h: number): number {
-        this.h = h;
-        this.calcR(h);
-        this.Q.Value = this.QCalc.Value;
-        return this.Q.Value;
-    }
-
-    public calcA(h: number): number{
-        this.h = h;
-        this.A.Value = this.ACalc.Value;
-        return this.A.Value;
-    }
-
-    public calcChi(h: number): number{
-        this.h = h;
-        this.chi.Value = this.ChiCalc.Value;
-        return this.chi.Value;
-    }
-
-    public calcR(h: number): number{
-        this.calcA(h);
-        this.calcChi(h);
-        this.R.Value = this.RCalc.Value;
-        return this.R.Value;
-    }
-
-    public makeDefinition(builder: MathDefinitionBuilder){
-        builder.formula(this.Q, this.QCalc);
-        builder.formula(this.R, this.RCalc);
-        builder.formula(this.A, this.ACalc);
-        builder.formula(this.chi, this.ChiCalc);
-    }
-
-    public makeDeclaration(builder: MathDeclarationBuilder){
-        builder.declare(this.Q);
-        builder.declare(this._i);
-        builder.declare(this._n);
-        builder.declare(this.R);
-        builder.declare(this.A);
-        builder.declare(this.chi);
-        builder.declare(this._h);
-        this.supplyDeclaration(builder);
-    }
-
-    public makeProcedure(builder: MathProcedureBuilder){
-        builder.formula(this.chi, this.ChiCalc, false);
-        builder.formula(this.A, this.ACalc, false);
-        builder.formula(this.R, this.RCalc, false);
-        builder.formula(this.Q, this.QCalc, false);
-    }
-
-    protected supplyDefinition(builder: MathDefinitionBuilder): void{
-        builder.formula(this.A, this.ACalc);
-        builder.formula(this.chi, this.ChiCalc);
-    };
-    protected abstract supplyDeclaration(builder: MathDeclarationBuilder):void;
+    hFormula = formula(this.h, mul(this.beta, this.b))
+    AFormula = formula(this.A, mul(this.b, this.h));
+    RFormula = formula(this.R, div(mul(this.b, this.h), add(this.b, mul(2, this.h))));
 
 }
 
+export class Trape extends Section {
+    b = V('b').info('梯形槽底宽').unit(UNIT.m);
+    m = V('m').info('梯形边坡坡比');
+
+    set w(val: number){
+        this.b.Value = val;
+    }
+
+    initFindH(b: number, m: number){
+        this.b.val(b);
+        this.m.val(m);
+    }
+
+    initFindW(m: number){
+        this.m.val(m);
+    }
+
+    hFormula = formula(this.h, mul(this.beta, this.b))
+    AFormula = formula(this.A, mul(add(this.b, mul(this.m, this.h)), this.h));
+    RFormula = formula(this.R, div(
+        mul(
+            add(this.b, mul(this.m, this.h)),
+            this.h
+        ),
+        add(
+            this.b,
+            mul(2, this.h, root(add(1, pow(this.m, 2)), 2))
+        )
+    ))
+}
 
 export class UShell extends Section {
-    protected _r = variable('r', { inform: 'U形槽半径', unit: unit('m') });
+    r = V('r').info('U形槽内径').unit(UNIT.m);
+    theta = V('θ').info('U形槽水面对应的圆心角').unit(unit('rad'));
 
-    protected ChiCalc: Expression = condition(
-        [greaterEqual(this._h, this._r), less(this._h, this._r)],
-        [num(2).mul(this._h.sub(this._r)).add(pi.mul(this._r)),
-        num(2).mul(acos(this._r.sub(this._h).div(this._r))).mul(this._r)]);
-    protected ACalc: Expression = condition(
-        [greaterEqual(this._h, this._r), less(this._h, this._r)],
-        [pi.mul(this._r.pow(2)).div(num(2)).add(this._h.sub(this._r).mul(num(2)).mul(this._r)),
-        acos(this._r.sub(this._h).div(this._r)).mul(this._r.pow(2))]);
-
-    set r(val: number) {
-        this._r.Value = val;
+    set w(val: number){
+        this.r.Value = val;
     }
 
-    protected supplyDeclaration(builder: MathDeclarationBuilder){
-        builder.declare(this._r);
+    initFindH(r: number){
+        this.r.val(r);
     }
 
-}
+    initFindW(){}
 
+    hFormula = formula(this.h, mul(2, this.beta, this.r));
+    thetaFormula = formula(this.theta, mul(2, acos(div(sub(this.r, this.h), this.r))));
+    AFormula = condition(
+        this.A,
+        [
+            GE(this.h, this.r),
+            add(
+                mul(div(1, 2), CONST.pi, pow(this.r, 2)),
+                mul(2, this.r, sub(this.h, this.r))
+            )
 
-export class Rectangle extends Section {
-    protected _b = variable('b', { inform: '矩形底宽', unit: unit('m') });
+        ],
+        [
+            LT(this.h, this.r),
+            mul(div(1, 2), pow(this.r, 2), sub(this.theta, sin(this.theta)))
+        ]
+    )
+    RFormula = condition(
+        this.R,
+        [
+            GE(this.h, this.r),
+            mul(
+                div(this.r, 2),
+                add(
+                    1,
+                    div(
+                        mul(2, sub(this.h, this.r)),
+                        add(mul(CONST.pi, this.r), mul(2, sub(this.h, this.r)))
+                    )
+                )
+            )
+        ],
+        [
+            LT(this.h, this.r),
+            mul(
+                div(this.r, 2),
+                sub(1, div(sin(this.theta), this.theta))
+            )
+        ]
+    )
 
-    protected ChiCalc: Expression = num(2).mul(this._h).add(this._b);
-    protected ACalc: Expression = this._b.mul(this._h);
-
-    set b(val: number) {
-        this._b.Value = val;
+    findH(Q: number){
+        return solveByBisect(0.1, 10, 0.001, (h)=>{
+            this.h.Value = h;
+            if(h<this.r.Value){
+                this.thetaFormula.calc();
+            }
+            this.AFormula.calc();
+            this.RFormula.calc();
+            return Q - this.QFormula.calc();
+        })
     }
 
-    protected supplyDeclaration(para: MathDeclarationBuilder){
-        para.declare(this._b);
+    findW(Q: number, beta: number){
+        this.beta.Value = beta;
+        return solveByBisect(0.1, 10, 0.001, (w)=>{
+            this.w = w;
+            this.hFormula.calc();
+            if(this.h.Value<this.r.Value){
+                this.thetaFormula.calc();
+            }
+            this.AFormula.calc();
+            this.RFormula.calc();
+            return Q - this.QFormula.calc();
+        })
     }
-
-}
-
-
-export class Trapezoid extends Section {
-    protected _b = variable('b', { inform: '梯形底宽', unit: unit('m') });
-    protected _m = variable('m', { inform: '梯形坡比' });
-
-    protected ChiCalc: Expression = this._b.add(num(2).mul(this._h).mul((num(1).add(this._m.pow(2))).rad(2)));
-    protected ACalc: Expression = this._b.add(this._m.mul(this._h)).mul(this._h);
-
-    set b(val: number) {
-        this._b.Value = val;
-    }
-
-    set m(val: number) {
-        this._m.Value = val;
-    }
-
-    protected supplyDeclaration(para: MathDeclarationBuilder){
-        para.declare(this._b);
-        para.declare(this._m);
-    }
-
 }
