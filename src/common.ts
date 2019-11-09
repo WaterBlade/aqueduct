@@ -1,11 +1,49 @@
-import { V, unit, pow, Expression, fdiv, Variable, DefinitionContent, DeclarationContent, ProcedureContent} from "docx";
+import { V, unit, pow, Expression, fdiv, Variable, DefinitionContent, DeclarationContent, ProcedureContent, Formula} from "docx";
 
 
-export interface ICalc{
-    toDclCnt(): DeclarationContent;
-    toDefCnt(): DefinitionContent;
-    toProcCnt(): ProcedureContent;
-    index(index?: number);
+export abstract class Calculator{
+    private vars: Variable[] = []; // variable list for declaration
+    private defs: Formula[] = []; // formula list for definition
+    private prcs: Formula[] = []; // formula list for procedure
+
+    protected abstract buildDef();
+    protected abstract buildDcl();
+    protected abstract buildPrc(index?: number);
+
+    protected pushDef(...defs: Formula[]){
+        this.defs.push(...defs);
+    }
+
+    protected pushDcl(...vars: Variable[]){
+        this.vars.push(...vars);
+    }
+
+    protected pushPrc(...prcs: Formula[]){
+        this.prcs.push(...prcs);
+    }
+
+    toDefCnt(): DefinitionContent{
+        this.buildDef();
+        const cnt = new DefinitionContent(...this.defs.map(m=>m.toDefinition()));
+        this.defs = [];
+        return cnt;
+    }
+    toDclCnt(): DeclarationContent{
+        this.buildDcl();
+        const cnt = new DeclarationContent(...this.vars.map(m=>m.toDeclaration()));
+        this.vars = [];
+        return cnt;
+    }
+    toPrcCnt(index?: number): ProcedureContent{
+        this.buildPrc(index);
+        const cnt = new ProcedureContent(...this.prcs.map(m=>m.toProcedure()));
+        this.prcs = [];
+        return cnt;
+    }
+}
+
+export class Calculation{
+
 }
 
 export const UNIT: {[name: string]: Expression} = {

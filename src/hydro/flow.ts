@@ -1,12 +1,12 @@
 import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv } from "docx";
-import { UNIT, CONST } from "../common";
-import { Section } from "./section";
+import { UNIT, CONST, Calculator, Calculation } from "../common";
+import { Section, FindH } from "./section";
 
-export class Flow{
+export class Flow extends Calculation{
     // 整体参数
     Q = V('Q').info('过流量').unit(UNIT.m3_s);
     i = FV('i').info('槽身坡降');
-    DZ = V('ΔZ').info('渡槽总水头损失').unit(UNIT.m);
+    DZ = V('ΔZ').info('渡槽总水面变化').unit(UNIT.m);
 
     // 流速
     v1 = V('ν').subs('1').info('进口渐变段上游渠道断面平均流速').unit(UNIT.m_s);
@@ -33,7 +33,7 @@ export class Flow{
     ksi2 = V('ξ').subs('2').info('出口段局部水头损失系数');
     // 平均水力坡降
     J12 = V('J').subs('1-2').info('进口段的平均水力坡降');
-    J23 = V('J').subs('2-3').info('出口段的平均水力坡降');
+    J34 = V('J').subs('3.4').info('出口段的平均水力坡降');
     // 糙率
     n1 = V('n').subs('1').info('进口渐变段糙率').prec(3);
     n2 = V('n').subs('2').info('出口渐变段糙率').prec(3)
@@ -71,7 +71,7 @@ export class Flow{
                 sub(pow(this.v, 2), pow(this.v2, 2)),
                 inv(mul(2, CONST.g))
             ),
-            mul(this.J23, this.L2)
+            mul(this.J34, this.L2)
         )
     );
     DZFormula = formula(
@@ -89,8 +89,8 @@ export class Flow{
             )
         )
     )
-    J23Formula = formula(
-        this.J23,
+    J34Formula = formula(
+        this.J34,
         mul(
             div(pow(this.Q, 2), pow(this.n2, 2), 2),
             add(
@@ -112,6 +112,20 @@ export class Flow{
     N4Formula = formula(
         this.N4,
         add(this.N2, this.h, this.Z3, minus(this.h2))
+    )
+
+    // 流速计算式
+    v1Formula = formula(
+        this.v1,
+        div(this.Q, this.A1)
+    )
+    vFormula = formula(
+        this.v,
+        div(this.Q, this.A2)
+    )
+    v2Formula = formula(
+        this.v2,
+        div(this.Q, this.A3)
     )
 
     // 进口断面、槽身断面、出口断面
@@ -139,9 +153,9 @@ export class Flow{
         const flume = this.flume;
         const down = this.downstream;
 
-        this.h1.val(up.findH(Q));
-        this.h.val(flume.findH(Q));
-        this.h2.val(down.findH(Q));
+        this.h1.val(new FindH(up).findH(Q));
+        this.h.val(new FindH(flume).findH(Q));
+        this.h2.val(new FindH(down).findH(Q));
 
         this.v1.val(up.vFormula.calc());
         this.v.val(flume.vFormula.calc());
@@ -156,7 +170,7 @@ export class Flow{
         this.R3.val(down.R.Value);
 
         this.J12Formula.calc();
-        this.J23Formula.calc();
+        this.J34Formula.calc();
 
         this.Z1Formula.calc();
         this.Z2Formula.calc();
@@ -171,4 +185,156 @@ export class Flow{
 
     }
 
+}
+
+
+export class CalcZ extends Calculator{
+    constructor(public flow: Flow, public upstream: FindH, public flume: FindH, public downstream: FindH){
+        super();
+    }
+
+    protected buildDcl(){
+        const flow = this.flow;
+        this.pushDcl(
+            flow.Z1,
+            flow.Z2,
+            flow.Z3,
+            flow.v1,
+            flow.v,
+            flow.v2,
+            flow.J12,
+            flow.J34,
+            flow.L1,
+            flow.L,
+            flow.L2,
+            flow.i,
+            flow.n1,
+            flow.n2,
+            flow.A1,
+            flow.A2,
+            flow.A3,
+            flow.R1,
+            flow.R2,
+            flow.R3
+        )
+    }
+
+    protected buildDef(){
+        const flow = this.flow;
+        this.pushDef(
+            flow.Z1Formula,
+            flow.Z2Formula,
+            flow.Z3Formula,
+            flow.J12Formula,
+            flow.J34Formula,
+            flow.v1Formula,
+            flow.vFormula,
+            flow.v2Formula
+        )
+    }
+
+    protected buildPrc(){
+        const flow = this.flow;
+        this.pushPrc(
+            flow.v1Formula,
+            flow.vFormula,
+            flow.v2Formula,
+            flow.J12Formula,
+            flow.J34Formula,
+            flow.Z1Formula,
+            flow.Z2Formula,
+            flow.Z3Formula
+        )
+    }
+
+    public calcZ(Q: number): number[]{
+        const up = this.upstream.sect;
+        const flume = this.flume.sect;
+        const down = this.downstream.sect;
+        const flow = this.flow;
+
+        flow.h1.val(this.upstream.findH(Q));
+        flow.h.val(this.flume.findH(Q));
+        flow.h2.val(this.downstream.findH(Q));
+
+        flow.A1.val(up.A.Value);
+        flow.A2.val(flume.A.Value);
+        flow.A3.val(down.A.Value);
+
+        flow.R1.val(up.R.Value);
+        flow.R2.val(flume.R.Value);
+        flow.R3.val(down.R.Value);
+
+        flow.v1Formula.calc();
+        flow.vFormula.calc();
+        flow.v2Formula.calc();
+
+        flow.J12Formula.calc();
+        flow.J34Formula.calc();
+
+        flow.Z1Formula.calc();
+        flow.Z2Formula.calc();
+        flow.Z3Formula.calc();
+
+        return [flow.Z1.Value, flow.Z2.Value, flow.Z3.Value]
+
+    }
+
+}
+
+export class CalcDZ extends Calculator{
+    constructor(public flow: Flow){super();}
+
+    protected buildDef(){
+        this.pushDef(
+            this.flow.DZFormula
+        )
+    }
+
+    protected buildDcl(){
+        this.pushDcl(
+            this.flow.DZ
+        )
+    }
+
+    protected buildPrc(){
+        this.pushPrc(
+            this.flow.DZFormula
+        )
+    }
+
+    public calcDZ(){
+        return this.flow.DZFormula.calc();
+    }
+
+}
+
+
+export class CalcN extends Calculator{
+    constructor(public flow: Flow){super();}
+
+    protected buildDef(){
+        this.pushDef(
+            this.flow.N1Formula,
+            this.flow.N2Formula,
+            this.flow.N4Formula
+        )
+    }
+
+    protected buildDcl(){
+        this.pushDcl(
+            this.flow.N1,
+            this.flow.N2,
+            this.flow.N3,
+            this.flow.N4
+        )
+    }
+
+    protected buildPrc(){
+        this.pushPrc(
+            this.flow.N1Formula,
+            this.flow.N2Formula,
+            this.flow.N4Formula
+        )
+    }
 }

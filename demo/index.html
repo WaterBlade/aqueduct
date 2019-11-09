@@ -12,25 +12,50 @@
 <body>
     <div id="app">
 
-        <el-form ref="form" :model="form" label-width="80px">
-            <el-form-item label="底坡 i">
-                <el-input v-model="form.i">1/</el-input>
+        <el-form ref="form" :model="design" label-width="80px">
+            <el-form-item label="底坡">
+                <el-input v-model="design.iDen"></el-input>
             </el-form-item>
-            <el-form-item label="糙率 n">
-                <el-input v-model="form.n"></el-input>
+            <el-form-item label="糙率">
+                <el-input v-model="design.n"></el-input>
             </el-form-item>
-            <el-form-item label="半径 r">
-                <el-input v-model="form.r"></el-input>
+            <el-form-item label="设计流量">
+                <el-input v-model="design.qs"></el-input>
             </el-form-item>
-            <el-form-item label="流量">
-                <el-input v-model="form.q"></el-input>
+            <el-form-item label="加大流量">
+                <el-input v-model="design.qj"></el-input>
             </el-form-item>
             <el-form-item>
-                <el-button type="primary" @click="onCalcH">试算水深</el-button>
+                <el-button @click="onDesign">计算尺寸范围</el-button>
             </el-form-item>
         </el-form>
         <p>
-            试算水深：{{ depth.toFixed(2) }}
+            按设计流量设计尺寸范围：{{ dim[0].toFixed(2) }} 至 {{ dim[1].toFixed(2) }}。
+        </p>
+        <p>
+            按加大流量设计尺寸范围：{{ dim[2].toFixed(2) }} 至 {{ dim[3].toFixed(2) }}。
+        </P>
+        <p>
+            综合考虑，设计尺寸范围是: {{ Math.max(dim[0], dim[2]).toFixed(2) }} 至 {{ Math.min(dim[1], dim[3]).toFixed(2) }}。
+        </p>
+        <el-form :model="confirm" label-width="120px">
+            <el-form-item label='选定内径'>
+                <el-input v-model="confirm.r"></el-input>
+            </el-form-item>
+            <el-form-item label='拉杆高度'>
+                <el-input v-model="confirm.t"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button @click="onConfirm">计算净高</el-button>
+            </el-form-item>
+        </el-form>
+        <p>
+            内径为{{ confirm.r }}时，按设计流量计算得到的最小净高为{{ netDepth[0] }}
+        </p>
+        <p>
+            内径为{{ confirm.r }}时，按加大流量计算得到的最小净高为{{ netDepth[1] }}
+        </p>
+        <p>
             <el-button @click="onBuild">生成计算文件</el-button>
         </p>
 
@@ -43,35 +68,45 @@
 <script src="https://unpkg.com/element-ui/lib/index.js"></script>
 <script src="../build/index.js"></script>
 <script>
-    const sect = new aqueduct.hydro.UShell();
-    
+    const calc = new aqueduct.hydro.HydroCalculator();
+
     new Vue({
         el: '#app',
-        data: function(){
+        data: function () {
             return {
-                form:{
-                    i: '',
+                design: {
+                    iDen: '',
                     n: '',
-                    r: '',
-                    q: '' 
+                    qs: '',
+                    qj: ''
                 },
-                depth: 0
+                confirm: {
+                    r: '',
+                    t: ''
+                },
+                depth: 0,
+                dim: [0, 0, 0, 0],
+                netDepth: [0, 0]
             }
         },
-        methods:{
-            onCalcH(){
-                sect.iDen = this.form.i;
-                sect.n = this.form.n;
-                sect.r = this.form.r;
-                this.depth = sect.calcH(this.form.q);
+        methods: {
+            onDesign() {
+                const sect = calc.ushell();
+                sect.i.den(this.design.iDen);
+                sect.n.val(this.design.n);
+
+                calc.setDesign(sect);
+                this.dim = calc.design(this.design.qs, this.design.qj);
 
             },
-            onBuild(){
-                const docx = aqueduct.hydro.makeDocX();
-                sect.makeDefinition(docx);
-                sect.makeDeclaration(docx);
-                sect.makeProcedure(docx);
-                docx.saveBlob('hydro.docx');
+            onConfirm(){
+                const sect = calc.designSection;
+                sect.r.val(Number(this.confirm.r));
+                this.netDepth = calc.confirm(Number(this.confirm.t));
+
+            },
+            onBuild() {
+                calc.makeReport();
             }
         }
     })
