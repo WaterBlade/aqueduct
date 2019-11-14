@@ -5,111 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
     <title>Document</title>
 </head>
 
 <body>
-    <div id="app">
+    <h1>DOCX browser Word document generation</h1>
 
-        <el-form ref="form" :model="design" label-width="80px">
-            <el-form-item label="底坡">
-                <el-input v-model="design.iDen"></el-input>
-            </el-form-item>
-            <el-form-item label="糙率">
-                <el-input v-model="design.n"></el-input>
-            </el-form-item>
-            <el-form-item label="设计流量">
-                <el-input v-model="design.qs"></el-input>
-            </el-form-item>
-            <el-form-item label="加大流量">
-                <el-input v-model="design.qj"></el-input>
-            </el-form-item>
-            <el-form-item>
-                <el-button @click="onDesign">计算尺寸范围</el-button>
-            </el-form-item>
-        </el-form>
-        <p>
-            按设计流量设计尺寸范围：{{ dim[0].toFixed(2) }} 至 {{ dim[1].toFixed(2) }}。
-        </p>
-        <p>
-            按加大流量设计尺寸范围：{{ dim[2].toFixed(2) }} 至 {{ dim[3].toFixed(2) }}。
-        </P>
-        <p>
-            综合考虑，设计尺寸范围是: {{ Math.max(dim[0], dim[2]).toFixed(2) }} 至 {{ Math.min(dim[1], dim[3]).toFixed(2) }}。
-        </p>
-        <el-form :model="confirm" label-width="120px">
-            <el-form-item label='选定内径'>
-                <el-input v-model="confirm.r"></el-input>
-            </el-form-item>
-            <el-form-item label='拉杆高度'>
-                <el-input v-model="confirm.t"></el-input>
-            </el-form-item>
-            <el-form-item>
-                <el-button @click="onConfirm">计算净高</el-button>
-            </el-form-item>
-        </el-form>
-        <p>
-            内径为{{ confirm.r }}时，按设计流量计算得到的最小净高为{{ netDepth[0] }}
-        </p>
-        <p>
-            内径为{{ confirm.r }}时，按加大流量计算得到的最小净高为{{ netDepth[1] }}
-        </p>
-        <p>
-            <el-button @click="onBuild">生成计算文件</el-button>
-        </p>
+    <button id="generate" type="button" onclick="generate()">Click to generate</button>
 
-    </div>
+    <script>
+        function generate() {
+            aqueduct.hydro.hydroCalcDemo();
+        }
 
-
+    </script>
 
 </body>
-<script src="https://unpkg.com/vue/dist/vue.js"></script>
-<script src="https://unpkg.com/element-ui/lib/index.js"></script>
 <script src="../build/index.js"></script>
 <script>
-    const calc = new aqueduct.hydro.HydroCalculator();
-
-    new Vue({
-        el: '#app',
-        data: function () {
-            return {
-                design: {
-                    iDen: '',
-                    n: '',
-                    qs: '',
-                    qj: ''
-                },
-                confirm: {
-                    r: '',
-                    t: ''
-                },
-                depth: 0,
-                dim: [0, 0, 0, 0],
-                netDepth: [0, 0]
-            }
-        },
-        methods: {
-            onDesign() {
-                const sect = calc.ushell();
-                sect.i.den(this.design.iDen);
-                sect.n.val(this.design.n);
-
-                calc.setDesign(sect);
-                this.dim = calc.design(this.design.qs, this.design.qj);
-
-            },
-            onConfirm(){
-                const sect = calc.designSection;
-                sect.r.val(Number(this.confirm.r));
-                this.netDepth = calc.confirm(Number(this.confirm.t));
-
-            },
-            onBuild() {
-                calc.makeReport();
-            }
-        }
-    })
 
 </script>
 

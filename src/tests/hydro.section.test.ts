@@ -6,7 +6,6 @@ import { expect } from "chai";
 
 describe('UShell Section Hydro Calculation', () => {
     const sect = new UShell();
-    const findH = new FindH(sect);
     sect.h.val(3.1445);
     sect.i.den(2000);
     sect.n.val(0.014);
@@ -21,14 +20,13 @@ describe('UShell Section Hydro Calculation', () => {
         expect(sect.QFormula.calc()).to.closeTo(24, 0.001);
     });
     it('h', ()=>{
-        expect(findH.findH(24)).to.closeTo(3.1445 ,0.001);
+        expect(FindH.solve(sect, 24)).to.closeTo(3.1445 ,0.001);
     });
 });
 
 describe('Rect Section Hydro Calculation', ()=>{
     const h = 2.8627;
     const sect = new Rect();
-    const findH = new FindH(sect);
     sect.h.val(h);
     sect.i.val(0.0005);
     sect.n.val(0.014)
@@ -43,14 +41,13 @@ describe('Rect Section Hydro Calculation', ()=>{
         expect(sect.QFormula.calc()).to.closeTo(24, 0.001);
     })
     it('h', ()=>{
-        expect(findH.findH(24)).to.closeTo(2.863, 0.001);
+        expect(FindH.solve(sect, 24)).to.closeTo(2.863, 0.001);
     })
 });
 
 describe('Trapezoid Section Hydro Calculation', ()=>{
     const h = 3.2338;
     const sect = new Trape();
-    const findH = new FindH(sect);
     sect.h.val(h);
     sect.i.val(1/9000);
     sect.n.val(0.015);
@@ -66,6 +63,6 @@ describe('Trapezoid Section Hydro Calculation', ()=>{
         expect(sect.QFormula.calc()).to.closeTo(24, 0.001);
     })
     it('h', ()=>{
-        expect(findH.findH(24)).to.closeTo(h, 0.001);
+        expect(FindH.solve(sect, 24)).to.closeTo(h, 0.001);
     })
 })

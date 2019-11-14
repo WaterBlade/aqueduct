@@ -1,49 +1,21 @@
-import { V, unit, pow, Expression, fdiv, Variable, DefinitionContent, DeclarationContent, ProcedureContent, Formula} from "docx";
+import { V, unit, pow, Expression, fdiv, Variable,  Formula} from "docx";
 
 
 export abstract class Calculator{
-    private vars: Variable[] = []; // variable list for declaration
-    private defs: Formula[] = []; // formula list for definition
-    private prcs: Formula[] = []; // formula list for procedure
-
-    protected abstract buildDef();
-    protected abstract buildDcl();
-    protected abstract buildPrc(index?: number);
-
-    protected pushDef(...defs: Formula[]){
-        this.defs.push(...defs);
-    }
-
-    protected pushDcl(...vars: Variable[]){
-        this.vars.push(...vars);
-    }
-
-    protected pushPrc(...prcs: Formula[]){
-        this.prcs.push(...prcs);
-    }
-
-    toDefCnt(): DefinitionContent{
-        this.buildDef();
-        const cnt = new DefinitionContent(...this.defs.map(m=>m.toDefinition()));
-        this.defs = [];
-        return cnt;
-    }
-    toDclCnt(): DeclarationContent{
-        this.buildDcl();
-        const cnt = new DeclarationContent(...this.vars.map(m=>m.toDeclaration()));
-        this.vars = [];
-        return cnt;
-    }
-    toPrcCnt(index?: number): ProcedureContent{
-        this.buildPrc(index);
-        const cnt = new ProcedureContent(...this.prcs.map(m=>m.toProcedure()));
-        this.prcs = [];
-        return cnt;
-    }
 }
 
-export class Calculation{
+export abstract class Calculation{
+    abstract clone();
 
+    protected cloneVarTo<T extends object>(obj: T): T{
+        for(const key in this){
+            const item = Reflect.get(this, key);
+            if(item instanceof Variable){
+                Reflect.get(obj, key).val(item.Value);
+            }
+        }
+        return obj;
+    }
 }
 
 export const UNIT: {[name: string]: Expression} = {
@@ -62,7 +34,7 @@ export const CONST: {[name: string]: Variable} = {
 
 
 export function solveByBisect( left, right, tolerance = 0.001, func: (x: number) => number): number {
-    const MAX_ITER = 20;
+    const MAX_ITER = 25;
     let iterCount = 0;
     let lRes = func(left);
     let rRes = func(right);

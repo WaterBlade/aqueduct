@@ -1,4 +1,4 @@
-import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv } from "docx";
+import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv, Variable, Formula } from "docx";
 import { UNIT, CONST, Calculator, Calculation } from "../common";
 import { Section, FindH } from "./section";
 
@@ -33,7 +33,7 @@ export class Flow extends Calculation{
     ksi2 = V('ξ').subs('2').info('出口段局部水头损失系数');
     // 平均水力坡降
     J12 = V('J').subs('1-2').info('进口段的平均水力坡降');
-    J34 = V('J').subs('3.4').info('出口段的平均水力坡降');
+    J34 = V('J').subs('3-4').info('出口段的平均水力坡降');
     // 糙率
     n1 = V('n').subs('1').info('进口渐变段糙率').prec(3);
     n2 = V('n').subs('2').info('出口渐变段糙率').prec(3)
@@ -47,6 +47,10 @@ export class Flow extends Calculation{
     N3 = V('▽').subs(3).info('渡槽进口渐变段上游渠底高程').unit(UNIT.m);
     N4 = V('▽').subs(4).info('渡槽出口渐变段下游渠底高程').unit(UNIT.m);
 
+    clone(){
+        return this.cloneVarTo(new Flow());
+    }
+
     // 水面变化计算式
     Z1Formula = formula(
         this.Z1,
@@ -58,7 +62,7 @@ export class Flow extends Calculation{
             ),
             mul(this.J12, this.L1)
         )
-    );
+    ).setLong();
     Z2Formula = formula(
         this.Z2,
         mul(this.i, this.L)
@@ -73,7 +77,7 @@ export class Flow extends Calculation{
             ),
             mul(this.J34, this.L2)
         )
-    );
+    ).setLong();
     DZFormula = formula(
         this.DZ,
         add(this.Z1, this.Z2, minus(this.Z3))
@@ -82,23 +86,23 @@ export class Flow extends Calculation{
     J12Formula = formula(
         this.J12,
         mul(
-            div(pow(this.Q, 2), pow(this.n1, 2), 2),
+            div(mul(pow(this.Q, 2), pow(this.n1, 2)), 2),
             add(
                 div(1, mul(pow(this.A1, 2), pow(this.R1, fdiv(4, 3)))),
                 div(1, mul(pow(this.A2, 2), pow(this.R2, fdiv(4, 3))))
             )
         )
-    )
+    ).setLong();
     J34Formula = formula(
         this.J34,
         mul(
-            div(pow(this.Q, 2), pow(this.n2, 2), 2),
+            div(mul(pow(this.Q, 2), pow(this.n2, 2)), 2),
             add(
                 div(1, mul(pow(this.A2, 2), pow(this.R2, fdiv(4, 3)))),
                 div(1, mul(pow(this.A3, 2), pow(this.R3, fdiv(4, 3))))
             )
         )
-    )
+    ).setLong();
 
     // 底板高程计算式
     N1Formula = formula(
@@ -127,135 +131,15 @@ export class Flow extends Calculation{
         this.v2,
         div(this.Q, this.A3)
     )
-
-    // 进口断面、槽身断面、出口断面
-    upstream: Section;
-    flume: Section
-    downstream: Section;
-
-    initCalc(
-        iDen: number, L1: number, L: number, L2: number,
-        n1: number, n2: number, k1: number, k2: number, N3: number
-    ){
-        this.i.den(iDen);
-        this.L1.val(L1);
-        this.L.val(L);
-        this.L2.val(L2);
-        this.n1.val(n1);
-        this.n2.val(n2);
-        this.ksi1.val(k1);
-        this.ksi2.val(k2);
-        this.N3.val(N3);
-    }
-
-    calc(Q: number){
-        const up = this.upstream;
-        const flume = this.flume;
-        const down = this.downstream;
-
-        this.h1.val(new FindH(up).findH(Q));
-        this.h.val(new FindH(flume).findH(Q));
-        this.h2.val(new FindH(down).findH(Q));
-
-        this.v1.val(up.vFormula.calc());
-        this.v.val(flume.vFormula.calc());
-        this.v2.val(down.vFormula.calc());
-
-        this.A1.val(up.A.Value);
-        this.A2.val(flume.A.Value);
-        this.A3.val(down.A.Value);
-
-        this.R1.val(up.R.Value);
-        this.R2.val(flume.R.Value);
-        this.R3.val(down.R.Value);
-
-        this.J12Formula.calc();
-        this.J34Formula.calc();
-
-        this.Z1Formula.calc();
-        this.Z2Formula.calc();
-        this.Z3Formula.calc();
-        this.DZFormula.calc();
-
-        this.N1Formula.calc();
-        this.N2Formula.calc();
-        this.N4Formula.calc();
-
-        
-
-    }
-
 }
 
+export const CalcZ = {
+    solve(flow: Flow, up: Section, flume: Section, down: Section, Q: number): number[]{
+        flow.Q.val(Q);
 
-export class CalcZ extends Calculator{
-    constructor(public flow: Flow, public upstream: FindH, public flume: FindH, public downstream: FindH){
-        super();
-    }
-
-    protected buildDcl(){
-        const flow = this.flow;
-        this.pushDcl(
-            flow.Z1,
-            flow.Z2,
-            flow.Z3,
-            flow.v1,
-            flow.v,
-            flow.v2,
-            flow.J12,
-            flow.J34,
-            flow.L1,
-            flow.L,
-            flow.L2,
-            flow.i,
-            flow.n1,
-            flow.n2,
-            flow.A1,
-            flow.A2,
-            flow.A3,
-            flow.R1,
-            flow.R2,
-            flow.R3
-        )
-    }
-
-    protected buildDef(){
-        const flow = this.flow;
-        this.pushDef(
-            flow.Z1Formula,
-            flow.Z2Formula,
-            flow.Z3Formula,
-            flow.J12Formula,
-            flow.J34Formula,
-            flow.v1Formula,
-            flow.vFormula,
-            flow.v2Formula
-        )
-    }
-
-    protected buildPrc(){
-        const flow = this.flow;
-        this.pushPrc(
-            flow.v1Formula,
-            flow.vFormula,
-            flow.v2Formula,
-            flow.J12Formula,
-            flow.J34Formula,
-            flow.Z1Formula,
-            flow.Z2Formula,
-            flow.Z3Formula
-        )
-    }
-
-    public calcZ(Q: number): number[]{
-        const up = this.upstream.sect;
-        const flume = this.flume.sect;
-        const down = this.downstream.sect;
-        const flow = this.flow;
-
-        flow.h1.val(this.upstream.findH(Q));
-        flow.h.val(this.flume.findH(Q));
-        flow.h2.val(this.downstream.findH(Q));
+        flow.h1.val(up.h.Value);
+        flow.h.val(flume.h.Value);
+        flow.h2.val(down.h.Value);
 
         flow.A1.val(up.A.Value);
         flow.A2.val(flume.A.Value);
@@ -278,63 +162,105 @@ export class CalcZ extends Calculator{
 
         return [flow.Z1.Value, flow.Z2.Value, flow.Z3.Value]
 
+    },
+    prc(flow: Flow){
+        const prcList: Formula[] = [];
+        prcList.push(
+            flow.v1Formula,
+            flow.vFormula,
+            flow.v2Formula,
+            flow.J12Formula,
+            flow.J34Formula,
+            flow.Z1Formula,
+            flow.Z2Formula,
+            flow.Z3Formula
+        );
+        return prcList;
+    },
+
+    def(flow: Flow){
+        const defList: Formula[] = [];
+        defList.push(
+            flow.Z1Formula,
+            flow.Z2Formula,
+            flow.Z3Formula,
+            flow.J12Formula,
+            flow.J34Formula,
+            flow.v1Formula,
+            flow.vFormula,
+            flow.v2Formula
+        );
+        return defList;
+    },
+    vars(flow: Flow){
+        const varList: Variable[] = [];
+        varList.push(
+            flow.Z1,
+            flow.Z2,
+            flow.Z3,
+            flow.v1,
+            flow.v,
+            flow.v2,
+            flow.J12,
+            flow.J34,
+            flow.L1,
+            flow.L,
+            flow.L2,
+            flow.i,
+            flow.n1,
+            flow.n2,
+            flow.A1,
+            flow.A2,
+            flow.A3,
+            flow.R1,
+            flow.R2,
+            flow.R3
+        );
+        return varList;
+    },
+}
+
+export const CalcDZ = {
+    solve(flow: Flow){
+        return flow.DZFormula.calc();
+    },
+
+    def(flow: Flow){
+        return [
+            flow.DZFormula
+        ]
+    },
+
+    vars(flow: Flow){
+        return [flow.DZ]
+    },
+
+    prc(flow: Flow){
+        return [flow.DZFormula]
     }
 
 }
 
-export class CalcDZ extends Calculator{
-    constructor(public flow: Flow){super();}
 
-    protected buildDef(){
-        this.pushDef(
-            this.flow.DZFormula
-        )
-    }
+export const CalcN  = {
 
-    protected buildDcl(){
-        this.pushDcl(
-            this.flow.DZ
-        )
-    }
+    solve(flow: Flow){
+        return [
+            flow.N1Formula.calc(),
+            flow.N2Formula.calc(),
+            flow.N4Formula.calc()
+        ]
+    },
 
-    protected buildPrc(){
-        this.pushPrc(
-            this.flow.DZFormula
-        )
-    }
+    prc(flow: Flow){
+        return [flow.N1Formula, flow.N2Formula, flow.N4Formula]
+    },
+    def(flow: Flow){
+        return [flow.N1Formula, flow.N2Formula, flow.N4Formula]
+    },
 
-    public calcDZ(){
-        return this.flow.DZFormula.calc();
-    }
+    vars(flow: Flow){
+        return [flow.N1, flow.N2, flow.N3, flow.N4]
+    },
 
-}
-
-
-export class CalcN extends Calculator{
-    constructor(public flow: Flow){super();}
-
-    protected buildDef(){
-        this.pushDef(
-            this.flow.N1Formula,
-            this.flow.N2Formula,
-            this.flow.N4Formula
-        )
-    }
-
-    protected buildDcl(){
-        this.pushDcl(
-            this.flow.N1,
-            this.flow.N2,
-            this.flow.N3,
-            this.flow.N4
-        )
-    }
-
-    protected buildPrc(){
-        this.pushPrc(
-            this.flow.N1Formula,
-            this.flow.N2Formula,
-            this.flow.N4Formula
-        )
-    }
 }
