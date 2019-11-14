@@ -1,4 +1,4 @@
-import { UShell, Rect, Trape, FindH } from "../hydro";
+import { UShell, Rect, Trape, FindH } from "../src/hydro";
 
 import { describe, it } from "mocha";
 import { expect } from "chai";
