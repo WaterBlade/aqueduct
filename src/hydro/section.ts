@@ -67,6 +67,9 @@ class FlowCalculator {
             mul(div(1, this.n), this.A, pow(this.R, div(2, 3)), pow(this.i, div(1, 2)))
         ).setLong();
     }
+    calc() {
+        this.QFormula.calc();
+    }
 }
 
 class RectCalculator {
