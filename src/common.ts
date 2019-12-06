@@ -1,24 +1,13 @@
 import { V, unit, pow, Expression, fdiv, Variable,  Formula} from "docx";
 
 
-export abstract class Calculator{
+export abstract class Solver{
 }
 
 export abstract class Calculation{
-    abstract clone();
-
-    protected cloneVarTo<T extends object>(obj: T): T{
-        for(const key in this){
-            const item = Reflect.get(this, key);
-            if(item instanceof Variable){
-                Reflect.get(obj, key).val(item.Value);
-            }
-        }
-        return obj;
-    }
 }
 
-export const UNIT: {[name: string]: Expression} = {
+export const Unit: {[name: string]: Expression} = {
     m: unit('m'),
     m2 : pow(unit('m'), 2),
     m3 : pow(unit('m'), 3),
@@ -29,7 +18,7 @@ export const UNIT: {[name: string]: Expression} = {
 
 export const CONST: {[name: string]: Variable} = {
     pi: V('π').info('圆周率').val(Math.PI),
-    g: V('g').info('重力加速度').unit(UNIT.m_s2).val(9.81)
+    g: V('g').info('重力加速度').unit(Unit.m_s2).val(9.81)
 }
 
 

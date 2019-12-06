@@ -1,47 +1,24 @@
-import { Calculation, UNIT, CONST, solveByBisect } from "../common";
+import { Calculation, CONST, solveByBisect } from "../common";
+import Unit from '../unit';
 import { V, EQ, add, div, pow, mul, Relation, inv, abs, sub, formula, fdiv } from "docx";
-import { Section, FindHk } from "./section";
+import { Section, FindHk, UShell, Rect, Trape } from "./section";
 
 export class Line extends Calculation {
-    Q = V('Q').info('流量').unit(UNIT.m3_s);
-    L = V('L').subs('k-k+1').info('渠段长度').unit(UNIT.m);
+    Q = V('Q').info('流量').unit(Unit.m3_s);
+    L = V('L').subs('k-k+1').info('渠段长度').unit(Unit.m);
     ksi = V('ξ').subs('k-k+1').info('局部水头损失系数');
     J12 = V('J').subs('k-k+1').info('渠段内的平均水力坡降');
     n = V('n').subs('k-k+1').info('渠段糙率');
-    z1 = V('z').subs('k').info('下游断面底板高程').unit(UNIT.m);
-    z2 = V('z').subs('k+1').info('上游断面底板高程').unit(UNIT.m);
-    h1 = V('h').subs('k').info('下游断面水深').unit(UNIT.m);
-    h2 = V('h').subs('k+1').info('上游断面水深').unit(UNIT.m);
-    R1 = V('R').subs('k').info('下游断面水力半径').unit(UNIT.m);
-    R2 = V('R').subs('k+1').info('上游断面水力半径').unit(UNIT.m);
-    A1 = V('A').subs('k').info('下游断面过水面积').unit(UNIT.m2);
-    A2 = V('A').subs('k+1').info('上游断面过水面积').unit(UNIT.m2);
-    hs = V('h').subs('s:k-k+1').info('局部水头损失').unit(UNIT.m);
-    hf = V('h').subs('f:k-k+1').info('沿程水头损失').unit(UNIT.m);
-
-    clone() {
-        return this.cloneVarTo(new Line());
-    }
-
-    setIndex(index: number){
-        const i1 = index;
-        const i2 = index + 1;
-        const ii = `${index}-${index+1}`
-        this.L.subs(ii);
-        this.ksi.subs(ii);
-        this.J12.subs(ii);
-        this.n.subs(ii);
-        this.z1.subs(i1);
-        this.z2.subs(i2);
-        this.h1.subs(i1);
-        this.h2.subs(i2);
-        this.R1.subs(i1);
-        this.R2.subs(i2);
-        this.A1.subs(i1);
-        this.A2.subs(i2);
-        this.hs.subs('s:'+ii);
-        this.hf.subs('f:'+ii)
-    }
+    z1 = V('z').subs('k').info('下游断面底板高程').unit(Unit.m);
+    z2 = V('z').subs('k+1').info('上游断面底板高程').unit(Unit.m);
+    h1 = V('h').subs('k').info('下游断面水深').unit(Unit.m);
+    h2 = V('h').subs('k+1').info('上游断面水深').unit(Unit.m);
+    R1 = V('R').subs('k').info('下游断面水力半径').unit(Unit.m);
+    R2 = V('R').subs('k+1').info('上游断面水力半径').unit(Unit.m);
+    A1 = V('A').subs('k').info('下游断面过水面积').unit(Unit.m2);
+    A2 = V('A').subs('k+1').info('上游断面过水面积').unit(Unit.m2);
+    hs = V('h').subs('s:k-k+1').info('局部水头损失').unit(Unit.m);
+    hf = V('h').subs('f:k-k+1').info('沿程水头损失').unit(Unit.m);
 
 
     EnergyEquation: Relation = EQ(
@@ -95,6 +72,36 @@ export class Line extends Calculation {
 
 
 export const FindLineH = {
+    initLine(
+        line: Line, 
+        l: number, // 长度
+        n: number, // 糙率
+        ksi: number, // 局部水头损失系数
+    ){
+        line.L.val(l);
+        line.n.val(n);
+        line.ksi.val(ksi);
+    },
+    initUShell(
+        sect: UShell,
+        r: number, // 半径
+    ){
+        sect.r.val(r);
+    },
+    initRect(
+        sect: Rect,
+        b: number, // 底宽
+    ){
+        sect.b.val(b);
+    },
+    initTrap(
+        sect: Trape,
+        b: number, // 底宽
+        m: number, // 坡比
+    ){
+        sect.b.val(b);
+        sect.m.val(m)
+    },
     solve(line: Line, down: Section, up: Section, Q: number) {
         line.Q.val(Q);
         up.Q.val(Q);

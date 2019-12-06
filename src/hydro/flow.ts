@@ -1,33 +1,34 @@
 import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv, Variable, Formula } from "docx";
-import { UNIT, CONST, Calculator, Calculation } from "../common";
+import { CONST, Solver, Calculation } from "../common";
+import Unit from '../unit';
 import { Section, FindH } from "./section";
 
 export class Flow extends Calculation{
     // 整体参数
-    Q = V('Q').info('过流量').unit(UNIT.m3_s);
+    Q = V('Q').info('过流量').unit(Unit.m3_s);
     i = FV('i').info('槽身坡降');
-    DZ = V('ΔZ').info('渡槽总水面变化').unit(UNIT.m);
+    DZ = V('ΔZ').info('渡槽总水面变化').unit(Unit.m);
 
     // 流速
-    v1 = V('ν').subs('1').info('进口渐变段上游渠道断面平均流速').unit(UNIT.m_s);
-    v = V('ν').info('槽身断面平均流速').unit(UNIT.m_s);
-    v2 = V('ν').subs('2').info('出口渐变段上游渠道断面平均流速').unit(UNIT.m_s)
+    v1 = V('ν').subs('1').info('进口渐变段上游渠道断面平均流速').unit(Unit.m_s);
+    v = V('ν').info('槽身断面平均流速').unit(Unit.m_s);
+    v2 = V('ν').subs('2').info('出口渐变段上游渠道断面平均流速').unit(Unit.m_s)
     // 面积
-    A1 = V('A').subs('1').info('进口渐变段上游渠道断面过水面积').unit(UNIT.m2);
-    A2 = V('A').subs('2').info('槽身过水断面面积').unit(UNIT.m2);
-    A3 = V('A').subs('3').info('出口渐变段上游渠道断面过水面积').unit(UNIT.m2)
+    A1 = V('A').subs('1').info('进口渐变段上游渠道断面过水面积').unit(Unit.m2);
+    A2 = V('A').subs('2').info('槽身过水断面面积').unit(Unit.m2);
+    A3 = V('A').subs('3').info('出口渐变段上游渠道断面过水面积').unit(Unit.m2)
     // 水力半径
-    R1 = V('R').subs('1').info('进口渐变段上游渠道断面水力半径').unit(UNIT.m);
-    R2 = V('R').subs('2').info('槽身过水断面水力半径').unit(UNIT.m);
-    R3 = V('R').subs('3').info('出口渐变段上游渠道断面水力半径').unit(UNIT.m)
+    R1 = V('R').subs('1').info('进口渐变段上游渠道断面水力半径').unit(Unit.m);
+    R2 = V('R').subs('2').info('槽身过水断面水力半径').unit(Unit.m);
+    R3 = V('R').subs('3').info('出口渐变段上游渠道断面水力半径').unit(Unit.m)
     // 长度
-    L1 = V('L').subs('1').info('进口段长度').unit(UNIT.m);
-    L = V('L').info('槽身长度').unit(UNIT.m)
-    L2 = V('L').subs('2').info('出口段长度').unit(UNIT.m);
+    L1 = V('L').subs('1').info('进口段长度').unit(Unit.m);
+    L = V('L').info('槽身长度').unit(Unit.m)
+    L2 = V('L').subs('2').info('出口段长度').unit(Unit.m);
     // 水深
-    h1 = V('h').subs('1').info('通过设计流量时上游渠道水深').unit(UNIT.m);
-    h = V('h').info('通过设计流量时槽内水深').unit(UNIT.m);
-    h2 = V('h').subs(2).info('通过设计流量时下游渠道水深').unit(UNIT.m);
+    h1 = V('h').subs('1').info('通过设计流量时上游渠道水深').unit(Unit.m);
+    h = V('h').info('通过设计流量时槽内水深').unit(Unit.m);
+    h2 = V('h').subs(2).info('通过设计流量时下游渠道水深').unit(Unit.m);
     // 局部水头损失系数
     ksi1 = V('ξ').subs('1').info('进口段局部水头损失系数');
     ksi2 = V('ξ').subs('2').info('出口段局部水头损失系数');
@@ -38,18 +39,14 @@ export class Flow extends Calculation{
     n1 = V('n').subs('1').info('进口渐变段糙率').prec(3);
     n2 = V('n').subs('2').info('出口渐变段糙率').prec(3)
     // 水面变化
-    Z1 = V('Z').subs('1').info('进口水面降落值').unit(UNIT.m);
-    Z2 = V('Z').subs('2').info('槽身段水面降落值').unit(UNIT.m);
-    Z3 = V('Z').subs('3').info('出口水面降落值').unit(UNIT.m);
+    Z1 = V('Z').subs('1').info('进口水面降落值').unit(Unit.m);
+    Z2 = V('Z').subs('2').info('槽身段水面降落值').unit(Unit.m);
+    Z3 = V('Z').subs('3').info('出口水面降落值').unit(Unit.m);
     // 底板高程
-    N1 = V('▽').subs(1).info('渡槽进口槽身底板高程').unit(UNIT.m);
-    N2 = V('▽').subs(2).info('渡槽出口槽身底板高程').unit(UNIT.m);
-    N3 = V('▽').subs(3).info('渡槽进口渐变段上游渠底高程').unit(UNIT.m);
-    N4 = V('▽').subs(4).info('渡槽出口渐变段下游渠底高程').unit(UNIT.m);
-
-    clone(){
-        return this.cloneVarTo(new Flow());
-    }
+    N1 = V('▽').subs(1).info('渡槽进口槽身底板高程').unit(Unit.m);
+    N2 = V('▽').subs(2).info('渡槽出口槽身底板高程').unit(Unit.m);
+    N3 = V('▽').subs(3).info('渡槽进口渐变段上游渠底高程').unit(Unit.m);
+    N4 = V('▽').subs(4).info('渡槽出口渐变段下游渠底高程').unit(Unit.m);
 
     // 水面变化计算式
     Z1Formula = formula(

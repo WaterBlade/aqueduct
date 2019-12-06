@@ -12,11 +12,6 @@
         // "noUnusedLocals": true,
         "noUnusedParameters": true,
         "baseUrl": "./src",
-        "paths" : {
-          "/*": [
-              "./*"
-            ]
-        }
     },
     "exclude": [
         "node_modules",
@@ -24,7 +19,8 @@
         "**/_*",
         "demo",
         "scripts",
-        "webpack.config.ts"
+        "webpack.config.ts",
+        "build"
     ],
     "typedocOptions": {
         "mode": "file",

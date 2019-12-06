@@ -2,31 +2,21 @@ import {
     V, formula, mul, div, add, root, pow, unit, acos, sub,
     condition, GE, LT, sin, Formula, FV, Variable,
 } from "docx";
-import { UNIT, CONST, solveByBisect, Calculation, Calculator } from "../common";
+import { CONST, solveByBisect, Calculation, Solver } from "../common";
+import Unit from '../unit';
 
 
 export abstract class Section extends Calculation {
-    Q = V('Q').info('流量').unit(UNIT.m3_s);
+    Q = V('Q').info('流量').unit(Unit.m3_s);
     n = V('n').info('糙率');
     i = FV('i').info('底坡');
-    A = V('A').info('过水断面面积').unit(UNIT.m2);
-    R = V('R').info('过水断面水力半径').unit(UNIT.m);
-    h = V('h').info('水深').unit(UNIT.m);
-    v = V('v').info('流速').unit(UNIT.m_s);
+    A = V('A').info('过水断面面积').unit(Unit.m2);
+    R = V('R').info('过水断面水力半径').unit(Unit.m);
+    h = V('h').info('水深').unit(Unit.m);
+    v = V('v').info('流速').unit(Unit.m_s);
     beta = V('β').info('深宽比');
-    B = V('B').info('水面宽').unit(UNIT.m);
+    B = V('B').info('水面宽').unit(Unit.m);
     Fr = V('Fr').info('弗劳德常数');
-
-    setIndex(index: number) {
-        this.Q.subs(index);
-        this.n.subs(index);
-        this.i.subs(index);
-        this.A.subs(index);
-        this.R.subs(index);
-        this.h.subs(index);
-        this.v.subs(index);
-        this.beta.subs(index);
-    }
 
     abstract hFormula: Formula;
     abstract AFormula: Formula;
@@ -44,27 +34,64 @@ export abstract class Section extends Calculation {
         this.Fr,
         div(mul(pow(this.Q, 2), this.B), mul(CONST.g, pow(this.A, 3)))
     );
-    abstract set w(val: number);
-    abstract get width();
+    abstract get width(): Variable;
+}
+
+class QCalc extends Calculation {
+    Q = V('Q').info('流量').unit(Unit.m3_s);
+    n = V('n').info('糙率');
+    i = FV('i').info('底坡');
+    A = V('A').info('过水断面面积').unit(Unit.m2);
+    R = V('R').info('过水断面水力半径').unit(Unit.m);
+    h = V('h').info('水深').unit(Unit.m);
+    get QFormula() {
+        return formula(
+            this.Q,
+            mul(div(1, this.n), this.A, pow(this.R, div(2, 3)), pow(this.i, div(1, 2)))
+        ).setLong();
+    }
+}
+
+class FlowCalculator {
+    constructor(
+        public Q: Variable,
+        public n: Variable,
+        public i: Variable,
+        public A: Variable,
+        public R: Variable,
+        public h: Variable
+    ){}
+    get QFormula() {
+        return formula(
+            this.Q,
+            mul(div(1, this.n), this.A, pow(this.R, div(2, 3)), pow(this.i, div(1, 2)))
+        ).setLong();
+    }
+}
+
+class RectCalculator {
+    constructor(
+        public b: Variable,
+        public h: Variable,
+        public A: Variable,
+        public R: Variable,
+    ) { }
+    get AFormula() {
+        return formula(this.A, mul(this.b, this.h));
+    }
+    get RFormula(){
+        return formula(this.R, div(mul(this.b, this.h), add(this.b, mul(2, this.h))));
+    }
+    calc() {
+        this.AFormula.calc();
+        this.RFormula.calc();
+    }
 }
 
 export class Rect extends Section {
-    b = V('b').info('矩形槽底宽').unit(UNIT.m);
+    b = V('b').info('矩形槽底宽').unit(Unit.m);
 
-    clone(){
-        return this.cloneVarTo(new Rect());
-    }
-
-    setIndex(index: number) {
-        super.setIndex(index);
-        this.b.subs(index)
-    }
-
-    set w(val: number) {
-        this.b.Value = val;
-    }
-
-    get width(){
+    get width() {
         return this.b;
     }
 
@@ -76,24 +103,10 @@ export class Rect extends Section {
 }
 
 export class Trape extends Section {
-    b = V('b').info('梯形槽底宽').unit(UNIT.m);
+    b = V('b').info('梯形槽底宽').unit(Unit.m);
     m = V('m').info('梯形边坡坡比');
 
-    clone(){
-        return this.cloneVarTo(new Trape());
-    }
-
-    setIndex(index: number) {
-        super.setIndex(index);
-        this.b.subs(index);
-        this.b.subs(index);
-    }
-
-    set w(val: number) {
-        this.b.Value = val;
-    }
-
-    get width(){
+    get width() {
         return this.b;
     }
 
@@ -114,24 +127,10 @@ export class Trape extends Section {
 }
 
 export class UShell extends Section {
-    r = V('r').info('U形槽内径').unit(UNIT.m);
+    r = V('r').info('U形槽内径').unit(Unit.m);
     theta = V('θ').info('U形槽水面对应的圆心角').unit(unit('rad'));
 
-    clone(){
-        return this.cloneVarTo(new UShell());
-    }
-
-    setIndex(index: number) {
-        super.setIndex(index);
-        this.r.subs(index);
-        this.theta.subs(index);
-    }
-
-    set w(val: number) {
-        this.r.Value = val;
-    }
-
-    get width(){
+    get width() {
         return this.r;
     }
 
@@ -190,25 +189,38 @@ export class UShell extends Section {
 }
 
 export class Surmount extends Calculation {
-    hs = V('h').subs('s').info('通过设计流量时的水深').unit(UNIT.m);
-    hj = V('h').subs('j').info('通过加大流量时的水深').unit(UNIT.m);
-    Hmin = V('H').info('槽内最小净高').unit(UNIT.m);
-    Hj = V('H').unit(UNIT.m);
-    t = V('t').info('拉杆高度').unit(UNIT.m);
-    d = V('d').info('U形槽直径').unit(UNIT.m);
-    H = V('H').info('槽内净高').unit(UNIT.m);
+    hs = V('h').subs('s').info('通过设计流量时的水深').unit(Unit.m);
+    hj = V('h').subs('j').info('通过加大流量时的水深').unit(Unit.m);
+    Hmin = V('H').info('槽内最小净高').unit(Unit.m);
+    Hj = V('H').unit(Unit.m);
+    t = V('t').info('拉杆高度').unit(Unit.m);
+    d = V('d').info('U形槽直径').unit(Unit.m);
+    H = V('H').info('槽内净高').unit(Unit.m);
 
-    clone(){
-        return this.cloneVarTo(new Surmount());
+    sectType: 'ushell' | 'rect';
+
+    HjFormula = formula(this.Hj, add(this.hj, this.t, 0.1));
+    get HsFormula() {
+        if (this.sectType === 'ushell') {
+            return formula(this.Hmin, add(this.hs, div(this.d, 10)))
+        } else {
+            return formula(this.Hmin, add(this.hs, div(this.hs, 12), 0.05));
+        }
     }
-
-    HsRectFormula = formula(this.Hmin, add(this.hs, div(this.hs, 12), 0.05));
-    HsUShellFormula = formula(this.Hmin, add(this.hs, div(this.d, 10)))
-    HjFormula = formula(this.Hj, add(this.hj, this.t, 0.1))
 }
 
 
 export const FindH = {
+    initUshell(sect: UShell, n: number, iDen: number, r: number) {
+        sect.n.val(n);
+        sect.i.den(iDen);
+        sect.r.val(r);
+    },
+    initRect(sect: Rect, n: number, iDen: number, b: number) {
+        sect.n.val(n);
+        sect.i.den(iDen);
+        sect.b.val(b);
+    },
     solve(sect: Section, Q: number) {
         if (sect instanceof UShell) {
             return solveByBisect(0.1, 10, 0.0001, (h) => {
@@ -228,7 +240,7 @@ export const FindH = {
             return Q - sect.QFormula.calc();
         })
     },
-    prc(sect: Section): Formula[]{
+    prc(sect: Section): Formula[] {
         const prcList: Formula[] = [];
         if (sect instanceof UShell && sect.h < sect.r) {
             prcList.push(sect.thetaFormula);
@@ -240,8 +252,8 @@ export const FindH = {
         )
         return prcList;
     },
-    def(sect:Section): Formula[]{
-        const defList : Formula[] = [];
+    def(sect: Section): Formula[] {
+        const defList: Formula[] = [];
         defList.push(
             sect.QFormula,
             sect.AFormula,
@@ -252,7 +264,7 @@ export const FindH = {
         }
         return defList;
     },
-    vars(sect: Section): Variable[]{
+    vars(sect: Section): Variable[] {
         const varList: Variable[] = [];
         varList.push(sect.Q, sect.A, sect.R, sect.n, sect.i, sect.h)
         if (sect instanceof UShell) {
@@ -270,12 +282,15 @@ export const FindH = {
 
 
 export const FindW = {
-
+    init(sect: Section, n: number, iDen: number) {
+        sect.n.val(n);
+        sect.i.den(iDen);
+    },
     solve(sect: Section, Q: number, beta: number) {
         sect.beta.Value = beta;
         if (sect instanceof UShell) {
             return solveByBisect(0.1, 10, 0.0001, (w) => {
-                sect.w = w;
+                sect.width.val(w);
                 sect.hFormula.calc();
                 if (sect.h.Value < sect.r.Value) {
                     sect.thetaFormula.calc();
@@ -286,14 +301,14 @@ export const FindW = {
             })
         }
         return solveByBisect(0.1, 10, 0.0001, (w) => {
-            sect.w = w;
+            sect.width.val(w);
             sect.hFormula.calc();
             sect.AFormula.calc();
             sect.RFormula.calc();
             return Q - sect.QFormula.calc();
         })
     },
-    prc(sect: Section){
+    prc(sect: Section) {
         const prcList: Formula[] = [];
         prcList.push(sect.hFormula);
 
@@ -307,7 +322,7 @@ export const FindW = {
         )
         return prcList;
     },
-    def(sect: Section){
+    def(sect: Section) {
         const defList: Formula[] = [];
         defList.push(
             sect.QFormula,
@@ -321,7 +336,7 @@ export const FindW = {
         return defList;
     },
 
-    vars(sect: Section){
+    vars(sect: Section) {
         const varList: Variable[] = [];
         varList.push(sect.Q, sect.A, sect.R, sect.n, sect.i, sect.h, sect.beta)
         if (sect instanceof UShell) {
@@ -337,52 +352,38 @@ export const FindW = {
 
 
 export const FindSurmount = {
-    solve(sur: Surmount, sects: Section, sectj: Section, t: number) {
-
-        sur.hs.val(sects.h.Value);
-        sur.hj.val(sectj.h.Value);
+    init(sur: Surmount, hs: number, hj: number, sectType: 'ushell' | 'rect') {
+        sur.hs.val(hs);
+        sur.hj.val(hj);
+        sur.sectType = sectType;
+    },
+    solve(sur: Surmount, t: number) {
         sur.t.val(t);
-
-        let Hs: number;
-        if (sects instanceof UShell) {
-            sur.d.val(sects.r.Value * 2);
-            Hs = sur.HsUShellFormula.calc();
-        } else {
-            Hs = sur.HsRectFormula.calc();
-        }
-        const Hj = sur.HjFormula.calc();
-
-        return [Hs, Hj]
-
+        return [
+            sur.HsFormula.calc(),
+            sur.HjFormula.calc()
+        ]
     },
-    prc( surmount: Surmount, sect: Section) {
-        const prcList: Formula[] = [];
-        if (sect instanceof UShell) {
-            prcList.push(surmount.HsUShellFormula);
-        } else {
-            prcList.push(surmount.HsRectFormula);
-        }
-        prcList.push(surmount.HjFormula);
-        return prcList;
+    prc(surmount: Surmount) {
+        return [
+            surmount.HsFormula,
+            surmount.HjFormula
+        ]
     },
-    def( surmount: Surmount, sect: Section) {
-        const defList: Formula[] = [];
-        if (sect instanceof UShell) {
-            defList.push(surmount.HsUShellFormula);
-        } else {
-            defList.push(surmount.HsRectFormula);
-        }
-        defList.push(surmount.HjFormula);
-        return defList;
+    def(surmount: Surmount) {
+        return [
+            surmount.HsFormula,
+            surmount.HjFormula
+        ]
     },
-    vars(surmount: Surmount, sect: Section) {
-        const varList: Variable[] =[];
+    vars(surmount: Surmount) {
+        const varList: Variable[] = [];
         varList.push(
             surmount.Hmin,
             surmount.hs,
             surmount.hj
         )
-        if (sect instanceof UShell) {
+        if (surmount.sectType === 'ushell') {
             varList.push(surmount.d);
         }
         return varList;
@@ -390,7 +391,7 @@ export const FindSurmount = {
 }
 
 export const FindHk = {
-    solve(sect: Section, Q: number){
+    solve(sect: Section, Q: number) {
         sect.Q.val(Q);
         if (sect instanceof UShell) {
             return solveByBisect(0.1, 10, 0.0001, (h) => {

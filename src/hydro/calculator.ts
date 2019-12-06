@@ -94,8 +94,8 @@ export class HydroCalculator {
     }
 
     setFlumeW(val: number) {
-        this.flumeQs.w = val;
-        this.flumeQj.w = val;
+        this.flumeQs.width = val;
+        this.flumeQj.width = val;
     }
 
 
