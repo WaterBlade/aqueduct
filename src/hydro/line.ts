@@ -1,9 +1,9 @@
-import { Calculation, CONST, solveByBisect } from "../common";
+import { Calculation, CONST, solveByBisect, Environment } from "../common";
 import Unit from '../unit';
 import { V, EQ, add, div, pow, mul, Relation, inv, abs, sub, formula, fdiv } from "docx";
-import { Section, FindHk, UShell, Rect, Trape } from "./section";
+import { SectionCalc, UShellCalc, RectCalc, TrapeCalc, SectionEnv } from "./section";
 
-export class Line extends Calculation {
+export class LineCalc extends Calculation {
     Q = V('Q').info('流量').unit(Unit.m3_s);
     L = V('L').subs('k-k+1').info('渠段长度').unit(Unit.m);
     ksi = V('ξ').subs('k-k+1').info('局部水头损失系数');
@@ -20,6 +20,35 @@ export class Line extends Calculation {
     hs = V('h').subs('s:k-k+1').info('局部水头损失').unit(Unit.m);
     hf = V('h').subs('f:k-k+1').info('沿程水头损失').unit(Unit.m);
 
+    setIndex(i: number) {
+        const k = `${i}`;
+        const k1 = `${i+1}`;
+        const kk1 = `${i}-${i+1}`;
+
+        this.L.subs(kk1);
+        this.ksi.subs(kk1);
+        this.J12.subs(kk1);
+        this.n.subs(kk1);
+        this.z1.subs(k);
+        this.z2.subs(k1);
+        this.h1.subs(k);
+        this.h2.subs(k1);
+        this.R1.subs(k);
+        this.R2.subs(k1);
+        this.A1.subs(k);
+        this.A2.subs(k1);
+        this.hs.subs('s:'+kk1);
+        this.hf.subs('f:'+kk1);
+
+        this.down.h.subs(k);
+        this.down.A.subs(k);
+        this.down.R.subs(k);
+
+        this.up.h.subs(k1);
+        this.up.A.subs(k1);
+        this.up.R.subs(k1);
+
+    }
 
     EnergyEquation: Relation = EQ(
         add(
@@ -68,106 +97,123 @@ export class Line extends Calculation {
             )
         )
     ).setLong();
-}
 
+    constructor(public down: SectionCalc, public up: SectionCalc) { super(); }
 
-export const FindLineH = {
-    initLine(
-        line: Line, 
-        l: number, // 长度
-        n: number, // 糙率
-        ksi: number, // 局部水头损失系数
-    ){
-        line.L.val(l);
-        line.n.val(n);
-        line.ksi.val(ksi);
-    },
-    initUShell(
-        sect: UShell,
-        r: number, // 半径
-    ){
-        sect.r.val(r);
-    },
-    initRect(
-        sect: Rect,
-        b: number, // 底宽
-    ){
-        sect.b.val(b);
-    },
-    initTrap(
-        sect: Trape,
-        b: number, // 底宽
-        m: number, // 坡比
-    ){
-        sect.b.val(b);
-        sect.m.val(m)
-    },
-    solve(line: Line, down: Section, up: Section, Q: number) {
-        line.Q.val(Q);
+    calc(Q: number, h?: number) {
+        const up = this.up;
+        const down = this.down;
+        if(h){
+            down.h.val(h);
+        }else{
+            down.calcH(Q);
+        }
+
+        this.Q.val(Q);
         up.Q.val(Q);
 
-        const left = FindHk.solve(up, Q);
+        const left = up.calcHk(Q);
 
         return solveByBisect(left + 0.0001, 10, 0.0001, (h) => {
-            line.h1.val(down.h.Value);
-            line.h2.val(h);
+            this.h1.val(down.h.Value);
+            this.h2.val(h);
             up.h.val(h);
 
             up.AFormula.calc();
             up.RFormula.calc();
+            down.AFormula.calc();
+            down.RFormula.calc();
 
-            line.R1.val(up.R.Value);
-            line.R2.val(down.R.Value);
-            line.A1.val(up.A.Value);
-            line.A2.val(down.A.Value);
+            this.R1.val(up.R.Value);
+            this.R2.val(down.R.Value);
+            this.A1.val(up.A.Value);
+            this.A2.val(down.A.Value);
 
-            line.J12Formula.calc();
-            line.hsFormula.calc();
-            line.hfFormula.calc();
-            return line.EnergyEquation.Left.Value - line.EnergyEquation.Right.Value;
+            this.J12Formula.calc();
+            this.hsFormula.calc();
+            this.hfFormula.calc();
+            return this.EnergyEquation.Left.Value - this.EnergyEquation.Right.Value;
         })
-    },
-    eqDef(line: Line){
-        return [line.EnergyEquation]
-    },
-    fmlDef(line: Line){
+    }
+    defEq() {
+        return [this.EnergyEquation]
+    }
+    defFml() {
         return [
-            line.hsFormula,
-            line.hfFormula,
-            line.J12Formula
+            this.hsFormula,
+            this.hfFormula,
+            this.J12Formula
         ];
-    },
-    eqPrc(line: Line){
-        return [line.EnergyEquation]
-    },
-    fmlPrc(line: Line){
+    }
+    prcEq() {
+        return [this.EnergyEquation]
+    }
+    prcFml() {
         return [
-            line.J12Formula,
-            line.hfFormula,
-            line.hsFormula
+            this.J12Formula,
+            this.hfFormula,
+            this.hsFormula
         ]
-    },
-    eqVars(line: Line){
+    }
+    prcUp() {
         return [
-            line.z1,
-            line.z2,
-            line.h1,
-            line.h2,
-            line.Q,
-            line.A1,
-            line.A2,
-            line.hs,
-            line.hf
+            this.up.AFormula,
+            this.up.RFormula
         ]
-    },
-    fmlVars(line: Line){
+    }
+    prcDown() {
         return [
-            line.L,
-            line.R1,
-            line.R2,
-            line.ksi,
-            line.n,
-            line.J12
+            this.down.AFormula,
+            this.down.RFormula
+        ]
+    }
+    dclEq() {
+        return [
+            this.z1,
+            this.z2,
+            this.h1,
+            this.h2,
+            this.Q,
+            this.A1,
+            this.A2,
+            this.hs,
+            this.hf
+        ]
+    }
+    dclFml() {
+        return [
+            this.L,
+            this.R1,
+            this.R2,
+            this.ksi,
+            this.n,
+            this.J12
         ]
     }
 }
+
+
+export class LineEnv extends Environment {
+    L: number;
+    n: number;
+    ksi: number;
+    z1: number;
+    z2: number;
+    h: number;
+    constructor(public down: SectionEnv, public up: SectionEnv){super();}
+    initCalc(calc: LineCalc){
+        calc.L.val(this.L);
+        calc.n.val(this.n);
+        calc.ksi.val(this.ksi);
+        calc.z1.val(this.z1);
+        calc.z2.val(this.z2);
+        calc.down.h.val(this.h);
+    }
+    genCalc(){
+        const calc = new LineCalc(this.down.genCalc(), this.up.genCalc());
+        this.initCalc(calc);
+        return calc;
+    }
+
+}
+

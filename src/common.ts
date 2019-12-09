@@ -1,7 +1,7 @@
 import { V, unit, pow, Expression, fdiv, Variable,  Formula} from "docx";
 
 
-export abstract class Solver{
+export abstract class Environment{
 }
 
 export abstract class Calculation{

@@ -1,9 +1,10 @@
 import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv, Variable, Formula } from "docx";
-import { CONST, Solver, Calculation } from "../common";
+import { Calculation, Environment } from "../common";
 import Unit from '../unit';
-import { Section, FindH } from "./section";
+import Const from '../constVariable';
+import { SectionCalc, SectionEnv} from "./section";
 
-export class Flow extends Calculation{
+export class FloorCalc extends Calculation{
     // 整体参数
     Q = V('Q').info('过流量').unit(Unit.m3_s);
     i = FV('i').info('槽身坡降');
@@ -55,7 +56,7 @@ export class Flow extends Calculation{
             mul(
                 add(1, this.ksi1),
                 sub(pow(this.v, 2), pow(this.v1, 2)),
-                inv(mul(2, CONST.g))
+                inv(mul(2, Const.g))
             ),
             mul(this.J12, this.L1)
         )
@@ -70,7 +71,7 @@ export class Flow extends Calculation{
             mul(
                 sub(1, this.ksi2),
                 sub(pow(this.v, 2), pow(this.v2, 2)),
-                inv(mul(2, CONST.g))
+                inv(mul(2, Const.g))
             ),
             mul(this.J34, this.L2)
         )
@@ -115,149 +116,167 @@ export class Flow extends Calculation{
         add(this.N2, this.h, this.Z3, minus(this.h2))
     )
 
-    // 流速计算式
-    v1Formula = formula(
-        this.v1,
-        div(this.Q, this.A1)
-    )
-    vFormula = formula(
-        this.v,
-        div(this.Q, this.A2)
-    )
-    v2Formula = formula(
-        this.v2,
-        div(this.Q, this.A3)
-    )
-}
+    constructor(public up: SectionCalc, public flume: SectionCalc, public down: SectionCalc){super();}
 
-export const CalcZ = {
-    solve(flow: Flow, up: Section, flume: Section, down: Section, Q: number): number[]{
-        flow.Q.val(Q);
+    // 计算式
+    calc(Q: number){
+        this.Q.val(Q);
+        this.i.val(this.flume.i.Value);
 
-        flow.h1.val(up.h.Value);
-        flow.h.val(flume.h.Value);
-        flow.h2.val(down.h.Value);
+        this.up.calcH(Q);
+        this.flume.calcH(Q);
+        this.down.calcH(Q);
 
-        flow.A1.val(up.A.Value);
-        flow.A2.val(flume.A.Value);
-        flow.A3.val(down.A.Value);
+        this.h1.val(this.up.h.Value);
+        this.h.val(this.flume.h.Value);
+        this.h2.val(this.down.h.Value);
 
-        flow.R1.val(up.R.Value);
-        flow.R2.val(flume.R.Value);
-        flow.R3.val(down.R.Value);
+        this.A1.val(this.up.A.Value);
+        this.A2.val(this.flume.A.Value);
+        this.A3.val(this.down.A.Value);
 
-        flow.v1Formula.calc();
-        flow.vFormula.calc();
-        flow.v2Formula.calc();
+        this.R1.val(this.up.R.Value);
+        this.R2.val(this.flume.R.Value);
+        this.R3.val(this.down.R.Value);
 
-        flow.J12Formula.calc();
-        flow.J34Formula.calc();
+        this.v1.val(this.up.vFormula.calc());
+        this.v.val(this.flume.vFormula.calc());
+        this.v2.val(this.flume.vFormula.calc());
 
-        flow.Z1Formula.calc();
-        flow.Z2Formula.calc();
-        flow.Z3Formula.calc();
+        this.J12Formula.calc();
+        this.J34Formula.calc();
 
-        return [flow.Z1.Value, flow.Z2.Value, flow.Z3.Value]
+        this.Z1Formula.calc();
+        this.Z2Formula.calc();
+        this.Z3Formula.calc();
 
-    },
-    prc(flow: Flow){
-        const prcList: Formula[] = [];
-        prcList.push(
-            flow.v1Formula,
-            flow.vFormula,
-            flow.v2Formula,
-            flow.J12Formula,
-            flow.J34Formula,
-            flow.Z1Formula,
-            flow.Z2Formula,
-            flow.Z3Formula
-        );
-        return prcList;
-    },
-
-    def(flow: Flow){
-        const defList: Formula[] = [];
-        defList.push(
-            flow.Z1Formula,
-            flow.Z2Formula,
-            flow.Z3Formula,
-            flow.J12Formula,
-            flow.J34Formula,
-            flow.v1Formula,
-            flow.vFormula,
-            flow.v2Formula
-        );
-        return defList;
-    },
-    vars(flow: Flow){
-        const varList: Variable[] = [];
-        varList.push(
-            flow.Z1,
-            flow.Z2,
-            flow.Z3,
-            flow.v1,
-            flow.v,
-            flow.v2,
-            flow.J12,
-            flow.J34,
-            flow.L1,
-            flow.L,
-            flow.L2,
-            flow.i,
-            flow.n1,
-            flow.n2,
-            flow.A1,
-            flow.A2,
-            flow.A3,
-            flow.R1,
-            flow.R2,
-            flow.R3
-        );
-        return varList;
-    },
-}
-
-export const CalcDZ = {
-    solve(flow: Flow){
-        return flow.DZFormula.calc();
-    },
-
-    def(flow: Flow){
-        return [
-            flow.DZFormula
-        ]
-    },
-
-    vars(flow: Flow){
-        return [flow.DZ]
-    },
-
-    prc(flow: Flow){
-        return [flow.DZFormula]
+        this.DZFormula.calc();
+        
+        this.N1Formula.calc();
+        this.N2Formula.calc();
+        this.N4Formula.calc();
     }
-
+    // 定义
+    defZ(){
+        return [
+            this.Z1Formula,
+            this.Z2Formula,
+            this.Z3Formula,
+            this.J12Formula,
+            this.J34Formula,
+        ];
+    }
+    defDZ(){
+        return [this.DZFormula];
+    }
+    defN(){
+        return [
+            this.N1Formula,
+            this.N2Formula,
+            this.N4Formula
+        ];
+    }
+    // 变量
+    dclZ(){
+        return [
+            this.Z1,
+            this.Z2,
+            this.Z3,
+            this.v1,
+            this.v,
+            this.v2,
+            this.J12,
+            this.J34,
+            this.L1,
+            this.L,
+            this.L2,
+            this.i,
+            this.n1,
+            this.n2,
+            this.A1,
+            this.A2,
+            this.A3,
+            this.R1,
+            this.R2,
+            this.R3
+        ]
+    }
+    dclDZ(){
+        return [this.DZ];
+    }
+    dclN(){
+        return [
+            this.N1,
+            this.N2,
+            this.N3,
+            this.N4
+        ];
+    }
+    // 计算过程
+    prcZUp(){
+        this.up.h.subs(1);
+        this.up.A.subs(1);
+        this.up.R.subs(1);
+        this.up.v.subs(1);
+        return [...this.up.prcH(), this.up.vFormula];
+    }
+    prcZFlume(){
+        this.flume.A.subs(2);
+        this.flume.R.subs(2);
+        return [...this.flume.prcH(), this.flume.vFormula];
+    }
+    prcZDown(){
+        this.down.h.subs(2);
+        this.down.A.subs(3);
+        this.down.R.subs(3);
+        this.down.v.subs(2);
+        return [...this.down.prcH(), this.down.vFormula];
+    }
+    prcZ(){
+        return [
+            this.J12Formula,
+            this.J34Formula,
+            this.Z1Formula,
+            this.Z2Formula,
+            this.Z3Formula
+        ];
+    }
+    prcDZ(){
+        return [this.DZFormula];
+    }
+    prcN(){
+        return [
+            this.N1Formula,
+            this.N2Formula,
+            this.N4Formula
+        ];
+    }
+    
 }
 
-
-export const CalcN  = {
-
-    solve(flow: Flow){
-        return [
-            flow.N1Formula.calc(),
-            flow.N2Formula.calc(),
-            flow.N4Formula.calc()
-        ]
-    },
-
-    prc(flow: Flow){
-        return [flow.N1Formula, flow.N2Formula, flow.N4Formula]
-    },
-    def(flow: Flow){
-        return [flow.N1Formula, flow.N2Formula, flow.N4Formula]
-    },
-
-    vars(flow: Flow){
-        return [flow.N1, flow.N2, flow.N3, flow.N4]
-    },
-
+export class FloorEnv extends Environment{
+    N3: number;
+    L1: number;
+    L: number;
+    L2: number;
+    n1: number;
+    n2: number;
+    ksi1: number;
+    ksi2: number;
+    constructor(public up: SectionEnv, public flume: SectionEnv, public down: SectionEnv){super();}
+    genCalc(){
+        const calc = new FloorCalc(this.up.genCalc(), this.flume.genCalc(), this.down.genCalc());
+        this.initCalc(calc);
+        return calc;
+    }
+    initCalc(calc: FloorCalc){
+        calc.N3.val(this.N3);
+        calc.L1.val(this.L1);
+        calc.L.val(this.L);
+        calc.L2.val(this.L2);
+        calc.n1.val(this.n1);
+        calc.n2.val(this.n2);
+        calc.ksi1.val(this.ksi1);
+        calc.ksi2.val(this.ksi2);
+    }
 }
