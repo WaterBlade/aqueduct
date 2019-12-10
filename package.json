@@ -2,7 +2,7 @@
   "name": "aqueduct",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "build/index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha -r ./node_modules/ts-node/register tests/**/*.ts",
     "build": "rimraf ./build && webpack",

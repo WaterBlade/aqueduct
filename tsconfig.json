@@ -6,12 +6,12 @@
         "removeComments": true,
         "preserveConstEnums": true,
         "outDir": "./build",
-        // "rootDir": "./src",
+        "rootDir": "./src",
         "module": "commonjs",
         "declaration": true,
-        // "noUnusedLocals": true,
+        "noUnusedLocals": true,
         "noUnusedParameters": true,
-        // "baseUrl": "./src",
+        "baseUrl": "./src",
     },
     "exclude": [
         "node_modules",
@@ -21,23 +21,5 @@
         "scripts",
         "webpack.config.ts",
         "build"
-    ],
-    "typedocOptions": {
-        "mode": "file",
-        "out": "docs/api",
-        "exclude": "test",
-        "theme": "default",
-        "ignoreCompilerErrors": true,
-        "excludePrivate": true,
-        "excludeProtected": true,
-        "excludeNotExported": true,
-        "excludeExternals": false,
-        "target": "ES6",
-        "moduleResolution": "node",
-        "preserveConstEnums": true,
-        "stripInternal": true,
-        "suppressExcessPropertyErrors": true,
-        "suppressImplicitAnyIndexErrors": true,
-        "module": "commonjs"
-      }
+    ]
 }

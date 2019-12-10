@@ -1,4 +1,4 @@
-import { V, unit, pow, Expression, fdiv, Variable,  Formula} from "docx";
+import { V, unit, pow, Expression, fdiv, Variable} from "docx";
 
 
 export abstract class Environment{

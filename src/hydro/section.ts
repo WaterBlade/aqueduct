@@ -19,7 +19,7 @@ export abstract class SectionCalc extends Calculation {
     beta = V('β').info('深宽比');
     B = V('B').info('水面宽').unit(Unit.m);
     Fr = V('Fr').info('弗劳德常数');
-    h0 = V('h').subs(0).info('计算水深');
+    h0 = V('h').subs(0).info('计算水深').unit(Unit.m);
     rised: boolean = false;
 
     // 截面宽度变量

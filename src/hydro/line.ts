@@ -1,7 +1,7 @@
 import { Calculation, CONST, solveByBisect, Environment } from "../common";
 import Unit from '../unit';
 import { V, EQ, add, div, pow, mul, Relation, inv, abs, sub, formula, fdiv } from "docx";
-import { SectionCalc, UShellCalc, RectCalc, TrapeCalc, SectionEnv } from "./section";
+import { SectionCalc, SectionEnv } from "./section";
 
 export class LineCalc extends Calculation {
     Q = V('Q').info('流量').unit(Unit.m3_s);

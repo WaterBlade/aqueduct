@@ -1,11 +1,9 @@
 import { RectCalc, TrapeCalc, UShellCalc, RectEnv, TrapeEnv, UShellEnv } from "./section";
-import { DocXBuilder, V, Variable, GE, mul, LE } from "docx";
+import { DocXBuilder, V } from "docx";
 import Unit from '../unit';
 import { FloorCalc, FloorEnv } from "./floor";
 import { LineCalc, LineEnv } from "./line";
 import { SurmountEnv, SurmountCalc } from "./surmount";
-
-type SectType = 'ushell' | 'rect' | 'trape';
 
 export class HydroCalculator {
     ushellRatio = [0.7, 0.9]
@@ -205,7 +203,6 @@ export class HydroCalculator {
 
         for (let i = 0; i < this.flumeLinesEnv.length; i++) {
             const line = this.flumeLinesEnv[i];
-            const QsLine = line.genCalc();
             const QjLine = line.genCalc();
             QjLine.calc(Qj, hj);
             hj = QjLine.up.h.Value;
@@ -220,14 +217,18 @@ export class HydroCalculator {
 
         this.riseFlumeCalc.calcH(this.Qj);
         this.riseInletCalc.calcH(this.Qj);
+        this.riseFlumeCalc.checkRise(this.outletLineCalc.up.h.Value),
+        this.riseInletCalc.checkRise(this.inletLineCalc.up.h.Value)
 
         return [
-            this.riseFlumeCalc.checkRise(this.outletLineCalc.up.h.Value),
-            this.riseInletCalc.checkRise(this.inletLineCalc.up.h.Value)
+            this.riseFlumeCalc.h0.Value, // 计算水深
+            this.riseFlumeCalc.h.Value, // 均匀流水深
+            this.riseInletCalc.h0.Value,
+            this.riseInletCalc.h.Value,
         ]
     }
 
-    makeReport() {
+    makeReport(project?: string, building?: string, phase?: string) {
         const sect = this.flumeEnv instanceof UShellEnv ? 'U形槽' : '矩形槽';
         const ratio = this.flumeEnv instanceof UShellEnv ? this.ushellRatio : this.rectRatio;
         const Qs = V('Q').subs('s').val(this.Qs).unit(Unit.m3_s);
@@ -245,7 +246,13 @@ export class HydroCalculator {
         const b = new DocXBuilder();
 
         // 封面
-        b.cover().Name = '渡槽水力设计计算';
+        const cover = b.cover();
+        cover.Name = '渡槽水力设计计算';
+        cover.DesignPart = '水工';
+        if(project) cover.Project = project;
+        if(building) cover.Name = `${building}渡槽水力学计算`;
+        if(phase) cover.DesignPhase = phase;
+
 
         // 参数与结果
         b.h(1).t('计算参数及计算结果');
@@ -270,10 +277,10 @@ export class HydroCalculator {
         b.p().t('下游渠道糙率：').varVal(this.floorCalc.down.n);
         b.p().t('下游渠道底宽：').varVal((this.floorCalc.down as TrapeCalc | RectCalc).b);
         if (this.floorCalc.down instanceof TrapeCalc) b.p().t('下游渠道坡比：').varVal(this.floorCalc.down.m)
-        b.p().t('实际槽身进口底板高程').varVal(V('z').subs(1).val(this.N1));
-        b.p().t('实际槽身出口底板高程').varVal(V('z').subs(2).val(this.N2));
-        b.p().t('实际上游渠道底板高程').varVal(V('z').subs(3).val(this.N3));
-        b.p().t('实际下游渠道底板高程').varVal(V('z').subs(4).val(this.N4));
+        b.p().t('实际槽身进口底板高程').varVal(V('z').subs(1).val(this.N1).unit(Unit.m));
+        b.p().t('实际槽身出口底板高程').varVal(V('z').subs(2).val(this.N2).unit(Unit.m));
+        b.p().t('实际上游渠道底板高程').varVal(V('z').subs(3).val(this.N3).unit(Unit.m));
+        b.p().t('实际下游渠道底板高程').varVal(V('z').subs(4).val(this.N4).unit(Unit.m));
         //
         b.h(2).t('计算结果');
         b.h(3).t('槽身尺寸');
@@ -289,8 +296,8 @@ export class HydroCalculator {
         b.p().t('上游渐变段进口底板高程').varVal(this.floorCalc.N3);
         b.p().t('下游渐变段出口底板高程').varVal(this.floorCalc.N4);
         b.h(3).t('壅高复核');
-        b.p().t('通过加大流量时，槽身出口推算水深为：').varVal(this.riseFlumeCalc.h0).t('。其均匀流深水为：').varVal(this.riseFlumeCalc.h).t(this.riseFlumeCalc.rised? '，水面衔接不满足壅高限制。': '，水面衔接满足壅高限制。');
-        b.p().t('通过加大流量时，上游渠道推算水深为：').varVal(this.riseInletCalc.h0).t('。其均匀流深水为：').varVal(this.riseInletCalc.h).t(this.riseInletCalc.rised? '，水面衔接不满足壅高限制。': '，水面衔接满足壅高限制。');
+        b.p().t('通过加大流量时，槽身出口推算水深为：').varVal(this.riseFlumeCalc.h0).t('。其均匀流深水为：').varVal(this.riseFlumeCalc.h).t(this.riseFlumeCalc.rised ? '，水面衔接不满足壅高限制。' : '，水面衔接满足壅高限制。');
+        b.p().t('通过加大流量时，上游渠道推算水深为：').varVal(this.riseInletCalc.h0).t('。其均匀流深水为：').varVal(this.riseInletCalc.h).t(this.riseInletCalc.rised ? '，水面衔接不满足壅高限制。' : '，水面衔接满足壅高限制。');
 
 
 
@@ -429,8 +436,8 @@ export class HydroCalculator {
             b.h(3).t(`第${i + 1}段槽身水面线推求`)
             this.flumeLineCalcs[i].setIndex(i + 2);
             b.p().t('该段计算长度为：').varVal(this.flumeLineCalcs[i].L)
-            .t('。由上一步计算知，该段下游断面水深为：').varVal(this.flumeLineCalcs[i].h1)
-            .t('。代入方程组，解能量方程，得到该段上游断面水深').varVal(this.flumeLineCalcs[i].h2).t('。验算过程如下：');
+                .t('。由上一步计算知，该段下游断面水深为：').varVal(this.flumeLineCalcs[i].h1)
+                .t('。代入方程组，解能量方程，得到该段上游断面水深').varVal(this.flumeLineCalcs[i].h2).t('。验算过程如下：');
             b.procedure().equation(...this.flumeLineCalcs[i].prcEq());
             b.p().t('其中，断面水力要素计算过程如下：');
             b.procedure().formula(...this.flumeLineCalcs[i].prcFml());
@@ -440,7 +447,7 @@ export class HydroCalculator {
         b.h(2).t('进口渐变段水面线推求');
         this.inletLineCalc.setIndex(this.flumeLineCalcs.length + 2);
         b.p().t('由上一步计算知，槽身出口水深为：').varVal(this.inletLineCalc.h1)
-        .t('。解能量方程，得到上游渐变段进口水深').varVal(this.inletLineCalc.h2).t('。验算过程如下：');
+            .t('。解能量方程，得到上游渐变段进口水深').varVal(this.inletLineCalc.h2).t('。验算过程如下：');
         b.procedure().equation(...this.inletLineCalc.prcEq());
         b.p().t('其中，断面水力要素计算过程如下：');
         b.procedure().formula(...this.inletLineCalc.prcFml());

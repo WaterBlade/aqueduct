@@ -1,8 +1,8 @@
-import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv, Variable, Formula } from "docx";
+import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv } from "docx";
 import { Calculation, Environment } from "../common";
 import Unit from '../unit';
 import Const from '../constVariable';
-import { SectionCalc, SectionEnv, TrapeCalc, RectCalc, UShellCalc, TrapeEnv, RectEnv, UShellEnv} from "./section";
+import { TrapeCalc, RectCalc, UShellCalc, TrapeEnv, RectEnv, UShellEnv} from "./section";
 
 export class FloorCalc extends Calculation{
     // 整体参数
