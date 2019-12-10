@@ -1,9 +1,10 @@
 import {
     V, formula, mul, div, add, root, pow, unit, acos, sub,
-    condition, GE, LT, sin, Formula, FV, Variable,
+    condition, GE, LT, sin, Formula, FV, Variable, Relation, LE,
 } from "docx";
-import { CONST, solveByBisect, Calculation, Environment } from "../common";
+import { solveByBisect, Calculation, Environment } from "../common";
 import Unit from '../unit';
+import Const from '../constVariable';
 
 export abstract class SectionCalc extends Calculation {
     // ========== 
@@ -18,6 +19,8 @@ export abstract class SectionCalc extends Calculation {
     beta = V('β').info('深宽比');
     B = V('B').info('水面宽').unit(Unit.m);
     Fr = V('Fr').info('弗劳德常数');
+    h0 = V('h').subs(0).info('计算水深');
+    rised: boolean = false;
 
     // 截面宽度变量
     abstract get width(): Variable;
@@ -34,7 +37,7 @@ export abstract class SectionCalc extends Calculation {
     // 弗劳德数计算式
     FrFormula = formula(
         this.Fr,
-        div(mul(pow(this.Q, 2), this.B), mul(CONST.g, pow(this.A, 3)))
+        div(mul(pow(this.Q, 2), this.B), mul(Const.g, pow(this.A, 3)))
     );
     // 深宽比计算式
     abstract hFormula: Formula;
@@ -44,6 +47,8 @@ export abstract class SectionCalc extends Calculation {
     abstract RFormula: Formula;
     // 过水断面水面宽计算式
     abstract BFormula: Formula;
+    // 断面壅高验算式
+    hEquation: Relation = LE(this.h0, mul(1.03, this.h));
 
     protected ARCalc(){
         this.AFormula.calc();
@@ -89,14 +94,30 @@ export abstract class SectionCalc extends Calculation {
     prcW(){
         return [this.hFormula, ...this.prcH()];
     }
-    // 7 计算临界水深
+    // 5 计算临界水深
     calcHk(Q: number){
         this.Q.val(Q);
         return solveByBisect(0.1, 10, 0.0001, (h) => {
             this.h.val(h);
             this.ARCalc();
+            this.BFormula.calc();
             return 1 - this.FrFormula.calc();
         })
+    }
+    // 6 验算壅高
+    checkRise(h0: number){
+        this.h0.val(h0);
+        this.rised =  !this.hEquation.calc();
+        return this.rised
+    }
+    defRise(){
+        return [this.hEquation];
+    }
+    dclRise(){
+        return [this.h0];
+    }
+    prcRise(){
+        return [this.hEquation];
     }
 }
 
@@ -173,7 +194,7 @@ export class UShellCalc extends SectionCalc {
         [
             GE(this.h, this.r),
             add(
-                mul(div(1, 2), CONST.pi, pow(this.r, 2)),
+                mul(div(1, 2), Const.pi, pow(this.r, 2)),
                 mul(2, this.r, sub(this.h, this.r))
             )
 
@@ -193,7 +214,7 @@ export class UShellCalc extends SectionCalc {
                     1,
                     div(
                         mul(2, sub(this.h, this.r)),
-                        add(mul(CONST.pi, this.r), mul(2, sub(this.h, this.r)))
+                        add(mul(Const.pi, this.r), mul(2, sub(this.h, this.r)))
                     )
                 )
             )

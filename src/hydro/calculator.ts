@@ -14,18 +14,22 @@ export class HydroCalculator {
     Qs: number;
     Qj: number;
     t: number;
+    N1: number;
+    N2: number;
+    N3: number;
+    N4: number;
 
     lineCalcLength = 50;
 
     // 计算主体
-    flume: RectEnv | UShellEnv;
-    up: TrapeEnv | RectEnv;
-    down: TrapeEnv | RectEnv;
-    surmount: SurmountEnv;
-    floor: FloorEnv;
-    outletLine: LineEnv;
-    flumeLines: LineEnv[] = [];
-    inletLine: LineEnv;
+    flumeEnv: RectEnv | UShellEnv;
+    upEnv: TrapeEnv | RectEnv;
+    downEnv: TrapeEnv | RectEnv;
+    surmountEnv: SurmountEnv;
+    floorEnv: FloorEnv;
+    outletLineEnv: LineEnv;
+    flumeLinesEnv: LineEnv[] = [];
+    inletLineEnv: LineEnv;
 
     // 试算断面尺寸相关状态
     private flumeQsLeftCalc: UShellCalc | RectCalc;
@@ -37,13 +41,12 @@ export class HydroCalculator {
     // 试算槽底高程相关状态
     private floorCalc: FloorCalc;
 
-    // 验算槽底高程相关状态
-    private outletLineQsCalc: LineCalc;
-    private outletLineQjCalc: LineCalc;
-    private flumeLineQsCalcs: LineCalc[] = [];
-    private flumeLineQjCalcs: LineCalc[] = [];
-    private inletLineQsCalc: LineCalc;
-    private inletLineQjCalc: LineCalc;
+    // 验算壅高相关状态
+    private outletLineCalc: LineCalc;
+    private flumeLineCalcs: LineCalc[] = [];
+    private inletLineCalc: LineCalc;
+    private riseFlumeCalc: UShellCalc | RectCalc;
+    private riseInletCalc: TrapeCalc | RectCalc;
 
     private setRect(iDen: number, n: number, b?: number) {
         const sect = new RectEnv();
@@ -71,27 +74,27 @@ export class HydroCalculator {
 
     // 步骤1： 求断面尺寸取值范围
     setFlumeRect(iDen: number, n: number) {
-        this.flume = this.setRect(iDen, n);
-        this.flume.ratio = this.rectRatio;
+        this.flumeEnv = this.setRect(iDen, n);
+        this.flumeEnv.ratio = this.rectRatio;
     }
     setFlumeUShell(iDen: number, n: number) {
-        this.flume = this.setUShell(iDen, n);
-        this.flume.ratio = this.ushellRatio;
+        this.flumeEnv = this.setUShell(iDen, n);
+        this.flumeEnv.ratio = this.ushellRatio;
     }
 
-    setQ(Qs: number, Qj: number){
+    setQ(Qs: number, Qj: number) {
         this.Qs = Qs;
         this.Qj = Qj;
     }
 
     findW() {
 
-        this.flumeQsLeftCalc = this.flume.genCalc();
-        this.flumeQsRightCalc = this.flume.genCalc();
-        this.flumeQjLeftCalc = this.flume.genCalc();
-        this.flumeQjRightCalc = this.flume.genCalc();
+        this.flumeQsLeftCalc = this.flumeEnv.genCalc();
+        this.flumeQsRightCalc = this.flumeEnv.genCalc();
+        this.flumeQjLeftCalc = this.flumeEnv.genCalc();
+        this.flumeQjRightCalc = this.flumeEnv.genCalc();
 
-        const [min, max] = this.flume.ratio;
+        const [min, max] = this.flumeEnv.ratio;
 
         const sleft = this.flumeQsLeftCalc.calcW(this.Qs, max);
         const sright = this.flumeQsRightCalc.calcW(this.Qs, min);
@@ -102,37 +105,33 @@ export class HydroCalculator {
     }
 
     setFlumeW(val: number) {
-        this.flume.width = val;
+        this.flumeEnv.width = val;
     }
 
 
     // 步骤2：确定槽内净高
-    setSurmount(t: number){
-        this.surmount = new SurmountEnv(this.flume);
-        this.surmount.t;
+    setSurmount(t: number) {
+        this.surmountEnv = new SurmountEnv(this.flumeEnv);
+        this.surmountEnv.t = t;
     }
     findSurmount() {
-        const sur = this.surmount.genCalc();
+        const sur = this.surmountEnv.genCalc();
         this.surmountCalc = sur;
         return sur.calc(this.Qs, this.Qj);
     }
 
-    setFlumeH(val: number) {
-        this.surmountCalc.H.val(val);
-    }
-
     // 步骤3：按设计流量计算设计底板高程
     setUpRect(iDen: number, n: number, b: number) {
-        this.up = this.setRect(iDen, n, b);
+        this.upEnv = this.setRect(iDen, n, b);
     }
     setUpTrape(iDen: number, n: number, b: number, m: number) {
-        this.up = this.setTrape(iDen, n, b, m);
+        this.upEnv = this.setTrape(iDen, n, b, m);
     }
     setDownRect(iDen: number, n: number, b: number) {
-        this.down = this.setRect(iDen, n, b);
+        this.downEnv = this.setRect(iDen, n, b);
     }
     setDownTrape(iDen: number, n: number, b: number, m: number) {
-        this.down = this.setTrape(iDen, n, b, m);
+        this.downEnv = this.setTrape(iDen, n, b, m);
     }
 
     setFloor(
@@ -141,8 +140,8 @@ export class HydroCalculator {
         k1: number, k2: number,
         N3: number
     ) {
-        const floor = new FloorEnv(this.up, this.flume, this.down);
-        this.floor = floor;
+        const floor = new FloorEnv(this.upEnv, this.flumeEnv, this.downEnv);
+        this.floorEnv = floor;
 
         floor.L1 = L1;
         floor.L = L;
@@ -155,7 +154,7 @@ export class HydroCalculator {
     }
     // --计算水面线变化及底板高程
     calcFloor() {
-        this.floorCalc = this.floor.genCalc();
+        this.floorCalc = this.floorEnv.genCalc();
         this.floorCalc.calc(this.Qs);
         const N1 = this.floorCalc.N1.Value;
         const N2 = this.floorCalc.N2.Value;
@@ -164,72 +163,84 @@ export class HydroCalculator {
         return [N1, N2, N3, N4]
     }
 
-    // 步骤4：按加大流量推求水面曲线
+    // 步骤4：按加大流量及设计流量推求水面曲线
     setLine(N1: number, N2: number, N3: number, N4: number) {
-        const outlet = new LineEnv(this.down, this.flume);
-        outlet.L = this.floor.L2;
-        outlet.ksi = this.floor.ksi2;
-        outlet.n = this.floor.n2;
+        this.N1 = N1;
+        this.N2 = N2;
+        this.N3 = N3;
+        this.N4 = N4;
+        const outlet = new LineEnv(this.downEnv, this.flumeEnv);
+        outlet.L = this.floorEnv.L2;
+        outlet.ksi = this.floorEnv.ksi2;
+        outlet.n = this.floorEnv.n2;
         outlet.z1 = N4;
         outlet.z2 = N2;
-        this.outletLine = outlet;
-        
-        const count = Math.round(this.floor.L / this.lineCalcLength);
-        for(let i = 0; i < count; i++){
-            const line = new LineEnv(this.flume, this.flume);
-            line.L = i < count - 1 ? this.lineCalcLength : this.floor.L - this.lineCalcLength * (count-1);
+        this.outletLineEnv = outlet;
+
+        const count = Math.round(this.floorEnv.L / this.lineCalcLength);
+        for (let i = 0; i < count; i++) {
+            const line = new LineEnv(this.flumeEnv, this.flumeEnv);
+            line.L = i < count - 1 ? this.lineCalcLength : this.floorEnv.L - this.lineCalcLength * (count - 1);
             line.ksi = 0;
-            line.n = this.flume.n;
-            line.z1 = N1 - i * this.lineCalcLength / this.flume.iDen;
-            line.z2 = line.z1 - line.L / this.flume.iDen;
-            this.flumeLines.push(line);
+            line.n = this.flumeEnv.n;
+            line.z1 = N2 + i * this.lineCalcLength / this.flumeEnv.iDen;
+            line.z2 = line.z1 + line.L / this.flumeEnv.iDen;
+            this.flumeLinesEnv.push(line);
         }
-        const inlet = new LineEnv(this.down, this.flume);
-        inlet.L = this.floor.L1;
-        inlet.ksi = this.floor.ksi1;
-        inlet.n = this.floor.n1;
+        const inlet = new LineEnv(this.downEnv, this.flumeEnv);
+        inlet.L = this.floorEnv.L1;
+        inlet.ksi = this.floorEnv.ksi1;
+        inlet.n = this.floorEnv.n1;
         inlet.z1 = N1;
         inlet.z2 = N3;
-        this.inletLine = inlet;
+        this.inletLineEnv = inlet;
     }
     calcLine() {
-        const Qs = this.Qs;
         const Qj = this.Qj;
 
-        this.outletLineQsCalc = this.outletLine.genCalc();
-        this.outletLineQjCalc = this.outletLine.genCalc();
-        this.outletLineQsCalc.calc(Qs);
-        this.outletLineQjCalc.calc(Qj);
+        this.outletLineCalc = this.outletLineEnv.genCalc();
+        this.outletLineCalc.calc(Qj);
 
-        let hs = this.outletLineQsCalc.up.h.Value;
-        let hj = this.outletLineQjCalc.up.h.Value;
-        
-        for(let i = 0; i < this.flumeLines.length; i++){
-            const line = this.flumeLines[i];
+        let hj = this.outletLineCalc.up.h.Value;
+
+        for (let i = 0; i < this.flumeLinesEnv.length; i++) {
+            const line = this.flumeLinesEnv[i];
             const QsLine = line.genCalc();
             const QjLine = line.genCalc();
-            QsLine.calc(Qs, hs);
             QjLine.calc(Qj, hj);
-            hs = QsLine.up.h.Value;
             hj = QjLine.up.h.Value;
-            this.flumeLineQsCalcs.push(QsLine);
-            this.flumeLineQjCalcs.push(QjLine);
+            this.flumeLineCalcs.push(QjLine);
         }
-        this.inletLineQsCalc = this.inletLine.genCalc();
-        this.inletLineQjCalc = this.inletLine.genCalc();
-        this.inletLineQsCalc.calc(Qs);
-        this.inletLineQjCalc.calc(Qj);
+        this.inletLineCalc = this.inletLineEnv.genCalc();
+        this.inletLineCalc.calc(Qj, hj);
     }
-    findUpCheck() {
-        this.upCheckQj = this.upQj.clone();
-        return FindH.solve(this.upCheckQj, this.Qj);
+    calcRise() {
+        this.riseFlumeCalc = this.flumeEnv.genCalc();
+        this.riseInletCalc = this.upEnv.genCalc();
+
+        this.riseFlumeCalc.calcH(this.Qj);
+        this.riseInletCalc.calcH(this.Qj);
+
+        return [
+            this.riseFlumeCalc.checkRise(this.outletLineCalc.up.h.Value),
+            this.riseInletCalc.checkRise(this.inletLineCalc.up.h.Value)
+        ]
     }
 
     makeReport() {
-        const sect = this.flume instanceof UShellCalc ? 'U形槽' : '矩形槽';
-        const ratio = this.flume instanceof UShellCalc ? this.ushellRatio : this.rectRatio;
+        const sect = this.flumeEnv instanceof UShellEnv ? 'U形槽' : '矩形槽';
+        const ratio = this.flumeEnv instanceof UShellEnv ? this.ushellRatio : this.rectRatio;
         const Qs = V('Q').subs('s').val(this.Qs).unit(Unit.m3_s);
         const Qj = V('Q').subs('j').val(this.Qj).unit(Unit.m3_s);
+
+        // 定义用计算
+        const flumeDef = this.flumeEnv.genCalc();
+        const surmountDef = this.surmountEnv.genCalc();
+        const upDef = this.upEnv.genCalc();
+        const downDef = this.downEnv.genCalc();
+        const floorDef = this.floorEnv.genCalc();
+        const lineDef = this.inletLineEnv.genCalc();
+
         // 生成器
         const b = new DocXBuilder();
 
@@ -243,34 +254,44 @@ export class HydroCalculator {
         b.p().t('设计流量：').varVal(Qs);
         b.p().t('加大流量：').varVal(Qj);
         b.p().t('槽身长度：').varVal(this.floorCalc.L);
-        b.p().t('槽身纵坡：').varVal(this.flume.i);
-        b.p().t('槽身糙率：').varVal(this.flume.n);
+        b.p().t('槽身纵坡：').varVal(this.floorCalc.flume.i);
+        b.p().t('槽身糙率：').varVal(this.floorCalc.flume.n);
         b.p().t('上游渐变段长度：').varVal(this.floorCalc.L1);
         b.p().t('上游渐变段糙率：').varVal(this.floorCalc.n1);
+        b.p().t('上游渐变段局部水头损失系数：').varVal(this.floorCalc.ksi1);
         b.p().t('下游渐变段长度：').varVal(this.floorCalc.L2);
         b.p().t('下游渐变段糙率：').varVal(this.floorCalc.n2);
-        b.p().t('上游渠道纵坡：').varVal(this.floorUp.i.subs(3));
-        b.p().t('上游渠道糙率：').varVal(this.floorUp.n.subs(3));
-        b.p().t('上游渠道底宽：').varVal(this.floorUp.b.subs(3));
-        if (this.upSectType === 'trape') b.p().t('上游渠道坡比：').varVal((<TrapeCalc>this.floorUp).m.subs(3))
-        b.p().t('下游渠道纵坡：').varVal(this.floorDown.i.subs(4));
-        b.p().t('下游渠道糙率：').varVal(this.floorDown.n.subs(4));
-        b.p().t('下游渠道底宽：').varVal(this.floorDown.b.subs(4));
-        if (this.downSectType === 'trape') b.p().t('下游渠道坡比：').varVal((<TrapeCalc>this.floorDown).m.subs(4))
+        b.p().t('下游渐变段局部水头损失系数：').varVal(this.floorCalc.ksi2);
+        b.p().t('上游渠道纵坡：').varVal(this.floorCalc.up.i);
+        b.p().t('上游渠道糙率：').varVal(this.floorCalc.up.n);
+        b.p().t('上游渠道底宽：').varVal((this.floorCalc.up as TrapeCalc | RectCalc).b);
+        if (this.floorCalc.up instanceof TrapeCalc) b.p().t('上游渠道坡比：').varVal(this.floorCalc.up.m)
+        b.p().t('下游渠道纵坡：').varVal(this.floorCalc.down.i);
+        b.p().t('下游渠道糙率：').varVal(this.floorCalc.down.n);
+        b.p().t('下游渠道底宽：').varVal((this.floorCalc.down as TrapeCalc | RectCalc).b);
+        if (this.floorCalc.down instanceof TrapeCalc) b.p().t('下游渠道坡比：').varVal(this.floorCalc.down.m)
+        b.p().t('实际槽身进口底板高程').varVal(V('z').subs(1).val(this.N1));
+        b.p().t('实际槽身出口底板高程').varVal(V('z').subs(2).val(this.N2));
+        b.p().t('实际上游渠道底板高程').varVal(V('z').subs(3).val(this.N3));
+        b.p().t('实际下游渠道底板高程').varVal(V('z').subs(4).val(this.N4));
         //
         b.h(2).t('计算结果');
         b.h(3).t('槽身尺寸');
-        if (this.flume instanceof UShellCalc) {
-            b.p().t('U形槽设计内径：').varVal(this.flumeHsCalc.width);
+        if (flumeDef instanceof UShellCalc) {
+            b.p().t('U形槽设计内径：').varVal(flumeDef.width);
         } else {
-            b.p().t('矩形槽底宽：').varVal(this.flumeHsCalc.width);
+            b.p().t('矩形槽底宽：').varVal(flumeDef.width);
         }
-        b.p().t('槽内净高：').varVal(this.surmount.H);
-        b.h(3).t('底板高程');
+        b.p().t('最小槽内净高：').varVal(this.surmountCalc.H);
+        b.h(3).t('按设计流量计算的底板高程');
         b.p().t('槽身进口底板高程：').varVal(this.floorCalc.N1);
         b.p().t('槽身出口底板高程：').varVal(this.floorCalc.N2);
         b.p().t('上游渐变段进口底板高程').varVal(this.floorCalc.N3);
         b.p().t('下游渐变段出口底板高程').varVal(this.floorCalc.N4);
+        b.h(3).t('壅高复核');
+        b.p().t('通过加大流量时，槽身出口推算水深为：').varVal(this.riseFlumeCalc.h0).t('。其均匀流深水为：').varVal(this.riseFlumeCalc.h).t(this.riseFlumeCalc.rised? '，水面衔接不满足壅高限制。': '，水面衔接满足壅高限制。');
+        b.p().t('通过加大流量时，上游渠道推算水深为：').varVal(this.riseInletCalc.h0).t('。其均匀流深水为：').varVal(this.riseInletCalc.h).t(this.riseInletCalc.rised? '，水面衔接不满足壅高限制。': '，水面衔接满足壅高限制。');
+
 
 
         // 断面尺寸
@@ -279,65 +300,65 @@ export class HydroCalculator {
         // --槽宽或内径
         b.h(2).t('按深宽比拟定槽宽（内径）');
         b.p().t('规范对槽身深宽比取值做出了限定，本节通过拟定不同的槽宽（内径），按流量计算公式试算确定对应的尺寸。试算公式如下：');
-        b.definition().formula(...FindW.def(this.flume));
-        b.declaration().declare(...FindW.vars(this.flume));
+        b.definition().formula(...flumeDef.defH());
+        b.declaration().declare(...flumeDef.dclH());
         //
         b.p().t(`根据规范，${sect}深宽比的取值范围是${ratio[0].toFixed(2)}至${ratio[1].toFixed(2)}。当通过设计流量`)
             .varVal(Qs)
             .t(`，且槽内深宽比为${ratio[0]}时，试算得到的尺寸`)
             .varVal(this.flumeQsLeftCalc.width.subs(1))
             .t('，验算如下：')
-        b.procedure().formula(...FindW.prc(this.flumeQsLeftCalc));
+        b.procedure().formula(...this.flumeQsLeftCalc.prcW());
         //
         b.p().t(`当通过设计流量`)
             .varVal(Qs)
             .t(`且槽内深宽比为${ratio[1]}时，试算得到的尺寸为`)
             .varVal(this.flumeQsRightCalc.width.subs(2))
             .t('，验算如下：')
-        b.procedure().formula(...FindW.prc(this.flumeQsRightCalc));
+        b.procedure().formula(...this.flumeQsRightCalc.prcW());
         //
         b.p().t(`当通加大流量`)
             .varVal(Qj)
             .t(`且槽内深宽比为${ratio[0]}时，试算得到的尺寸为`)
             .varVal(this.flumeQjLeftCalc.width.subs(3))
             .t('，验算如下：')
-        b.procedure().formula(...FindW.prc(this.flumeQjLeftCalc));
+        b.procedure().formula(...this.flumeQjLeftCalc.prcW());
         //
         b.p().t(`当通加大流量`)
             .varVal(Qj)
             .t(`且槽内深宽比为${ratio[1]}时，试算得到的尺寸为`)
             .varVal(this.flumeQjRightCalc.width.subs(4))
             .t('，验算如下：')
-        b.procedure().formula(...FindW.prc(this.flumeQjRightCalc));
+        b.procedure().formula(...this.flumeQjRightCalc.prcW());
         //
         const leftWidth = Math.max(this.flumeQsLeftCalc.width.Value, this.flumeQjLeftCalc.width.Value);
         const rightWidth = Math.min(this.flumeQsRightCalc.width.Value, this.flumeQjRightCalc.width.Value);
         b.p().t(`槽宽（内径）的取值范围是：${leftWidth.toFixed(2)}至${rightWidth.toFixed(2)}`)
-        b.p().t('考虑适当取整，最终确定槽宽（内径）为：').varVal(this.flumeHsCalc.width);
+        b.p().t('考虑适当取整，最终确定槽宽（内径）为：').varVal(flumeDef.width);
 
         // --净高
         b.h(2).t('槽身净高计算')
         b.p().t('规范对槽身超高做出了规定，其最小净高可按下式计算：')
-        b.definition().formula(...FindSurmount.def(this.surmount, this.flume));
-        b.declaration().declare(...FindSurmount.vars(this.surmount, this.flume))
+        b.definition().formula(...surmountDef.def());
+        b.declaration().declare(...surmountDef.dcl());
         //
         b.p().t('槽内水深可以通过试算确定。当通过设计流量')
             .varVal(Qs)
             .t('时，槽内水深为：')
-            .varVal(this.flumeHsCalc.h.subs('s'))
+            .varVal(this.surmountCalc.hs)
             .t('，试算如下：')
-        b.procedure().formula(...FindH.prc(this.flumeHsCalc));
+        b.procedure().formula(...this.surmountCalc.sectionQs.prcH());
         //
         b.p().t('当通过加大流量')
             .varVal(Qj)
             .t('时，槽内水深为：')
-            .varVal(this.flumeHjCalc.h.subs('j'))
+            .varVal(this.surmountCalc.hj)
             .t('，试算如下：')
-        b.procedure().formula(...FindH.prc(this.flumeHjCalc));
+        b.procedure().formula(...this.surmountCalc.sectionQj.prcH());
         //
         b.p().t('最小净高计算如下：')
-        b.procedure().formula(...FindSurmount.prc(this.surmount, this.flume));
-        b.p().t('最终确定的槽身净高为：').varVal(this.surmount.H)
+        b.procedure().formula(...this.surmountCalc.prc());
+        b.p().t('最终确定的槽身净高为：').varVal(this.surmountCalc.H)
 
         // 底板高程设计
         b.pageBreak();
@@ -345,85 +366,105 @@ export class HydroCalculator {
         // --水面变化计算
         b.h(2).t('水面变化计算');
         b.p().t('根据规范，渡槽的水面变化按下式计算：');
-        b.definition().formula(...CalcZ.def(this.floorCalc));
-        b.declaration().declare(...CalcZ.vars(this.floorCalc));
+        b.definition().formula(...floorDef.defZ());
+        b.declaration().declare(...floorDef.dclZ());
         b.p().t('计算公式中的水深通过试算确定，同时可以得到相关水力要素。')
-        if (this.upSectType !== this.flumeSectType) {
-            b.p().t(`${this.floorUp instanceof TrapeCalc ? '梯形' : '矩形'}断面流量计算公式如下：`);
-            b.definition().formula(...FindH.def(this.floorUp.clone()));
-            b.declaration().declare(...FindH.vars(this.floorUp.clone()));
+        if (typeof this.upEnv !== typeof this.flumeEnv) {
+            b.p().t(`${this.upEnv instanceof TrapeEnv ? '梯形' : '矩形'}断面流量计算公式如下：`);
+            b.definition().formula(...upDef.defH());
+            b.declaration().declare(...upDef.dclH());
         }
-        if (this.downSectType !== this.flumeSectType && this.upSectType !== this.downSectType) {
-            b.p().t(`${this.floorDown instanceof TrapeCalc ? '梯形' : '矩形'}断面流量计算公式如下：`);
-            b.definition().formula(...FindH.def(this.floorDown.clone()));
-            b.declaration().declare(...FindH.vars(this.floorDown.clone()));
+        if (typeof this.downEnv !== typeof this.flumeEnv && typeof this.upEnv !== typeof this.downEnv) {
+            b.p().t(`${this.downEnv instanceof TrapeEnv ? '梯形' : '矩形'}断面流量计算公式如下：`);
+            b.definition().formula(...downDef.defH());
+            b.declaration().declare(...downDef.dclH());
         }
-        b.p().t('通过设计流量').varVal(Qs).t('时，上游断面试算得到水深')
-            .varVal(this.floorUp.h.subs(1)).t('、').varVal(this.floorUp.A.subs(1)).t('、').varVal(this.floorUp.R.subs(1))
+        b.p().t('通过设计流量').varVal(Qs).t('时，上游断面试算得到：')
+            .varVal(this.floorCalc.up.h.subs(1)).t('、').varVal(this.floorCalc.up.A.subs(1)).t('、').varVal(this.floorCalc.up.R.subs(1)).t('、').varVal(this.floorCalc.up.v.subs(1))
             .t('，验算如下：');
-        b.procedure().formula(...FindH.prc(this.floorUp));
-        b.p().t('通过设计流量').varVal(Qs).t('时，槽身断面试算得到水深')
-            .varVal(this.flumeHsCalc.h.subs('')).t('、').varVal(this.flumeHsCalc.A.subs(2)).t('、').varVal(this.flumeHsCalc.R.subs(2))
+        b.procedure().formula(...this.floorCalc.up.prcH(), this.floorCalc.up.vFormula);
+        b.p().t('通过设计流量').varVal(Qs).t('时，槽身断面试算得到：')
+            .varVal(this.floorCalc.flume.h.subs('')).t('、').varVal(this.floorCalc.flume.A.subs(2)).t('、').varVal(this.floorCalc.flume.R.subs(2)).t('、').varVal(this.floorCalc.flume.v)
             .t('，验算如下：');
-        b.procedure().formula(...FindH.prc(this.flumeHsCalc));
-        b.p().t('通过设计流量').varVal(Qs).t('时，下游断面试算得到水深')
-            .varVal(this.floorDown.h.subs(2)).t('、').varVal(this.floorDown.A.subs(3)).t('、').varVal(this.floorDown.R.subs(3))
+        b.procedure().formula(...this.floorCalc.flume.prcH(), this.floorCalc.flume.vFormula);
+        b.p().t('通过设计流量').varVal(Qs).t('时，下游断面试算得到：')
+            .varVal(this.floorCalc.down.h.subs(2)).t('、').varVal(this.floorCalc.down.A.subs(3)).t('、').varVal(this.floorCalc.down.R.subs(3)).t('、').varVal(this.floorCalc.down.v.subs(2))
             .t('，验算如下：');
-        b.procedure().formula(...FindH.prc(this.floorDown));
+        b.procedure().formula(...this.floorCalc.flume.prcH(), this.floorCalc.down.vFormula);
         b.p().t('各段水面变化计算结果如下：');
-        b.procedure().formula(...CalcZ.prc(this.floorCalc));
+        b.procedure().formula(...this.floorCalc.prcZ());
         b.p().t('渡槽总水面变化如下：');
-        b.procedure().formula(...CalcDZ.prc(this.floorCalc));
+        b.procedure().formula(...this.floorCalc.prcDZ());
         // --底板高程
         b.h(2).t('底板高程计算');
         b.p().t('根据规范，底板高程按下式计算：');
-        b.definition().formula(...CalcN.def(this.floorCalc));
-        b.declaration().declare(...CalcN.vars(this.floorCalc));
+        b.definition().formula(...floorDef.defN());
+        b.declaration().declare(...floorDef.dclN());
         b.p().t('代入数据计算，结果如下：');
-        b.procedure().formula(...CalcN.prc(this.floorCalc));
+        b.procedure().formula(...this.floorCalc.prcN());
 
         // 复核水面线
         b.pageBreak();
         b.h(1).t('按加大流量复核水面线');
+        b.p().t('根据水力学原理，任意两个断面均需满足能量方程')
+        b.definition().equation(...lineDef.defEq());
+        b.declaration().declare(...lineDef.dclEq());
+        b.p().t('相关参数按下式计算：')
+        b.definition().formula(...lineDef.defFml());
+        b.declaration().declare(...lineDef.dclFml());
         // --出口渐变段水面线
         b.h(2).t('出口渐变段水面线推求');
-        b.p().t('根据水力学原理，任意两个断面均需满足能量方程')
-        b.definition().equation(...FindLineH.eqDef(this.outletLineCalc));
-        b.declaration().declare(...FindLineH.eqVars(this.outletLineCalc));
-        b.p().t('相关参数按下式计算：')
-        b.definition().formula(...FindLineH.fmlDef(this.outletLineCalc));
-        b.declaration().declare(...FindLineH.fmlVars(this.outletLineCalc));
-        b.p().t('根据流量计算公式，可以试算得到通过加大流量').varVal(Qj).t('时，下游渠道内水深').varVal(this.downQj.h.subs(1)).t('。验算如下：');
-        b.procedure().formula(...FindH.prc(this.downQj));
+        b.p().t('根据流量计算公式，可以试算得到通过加大流量').varVal(Qj).t('时，下游渠道内水深').varVal(this.outletLineCalc.down.h.subs(1)).t('。验算如下：');
+        b.procedure().formula(...this.outletLineCalc.down.prcH());
         this.outletLineCalc.setIndex(1);
-        b.p().t('解能量方程，得到槽身出口水深').varVal(this.outletLineCalc.h2).t('。相关水力要素计算过程如下：');
-        b.procedure().formula(...FindLineH.fmlPrc(this.outletLineCalc));
-        b.p().t('代入能量方程验证过程如下：');
-        b.procedure().equation(...FindLineH.eqPrc(this.outletLineCalc));
+        b.p().t('解能量方程，得到槽身出口水深').varVal(this.outletLineCalc.h2).t('。验算过程如下：');
+        b.procedure().equation(...this.outletLineCalc.prcEq());
+        b.p().t('其中，断面水力要素计算过程如下：');
+        b.procedure().formula(...this.outletLineCalc.prcFml());
 
         // --槽身水面线计算
         b.h(2).t('槽身水面线推求');
-        this.flumeLineCalc.setIndex(2);
-        b.p().t('解能量方程，得到槽身进口水深').varVal(this.flumeLineCalc.h2).t('。相关水力要素计算过程如下：');
-        b.procedure().formula(...FindLineH.fmlPrc(this.flumeLineCalc));
-        b.p().t('代入能量方程验证过程如下：');
-        b.procedure().equation(...FindLineH.eqPrc(this.flumeLineCalc));
+        b.p().t(`槽身长度较长，将其划分为50m一段进行计算。可划分为${this.flumeLineCalcs.length}段。`);
+        for (let i = 0; i < this.flumeLineCalcs.length; i++) {
+            b.h(3).t(`第${i + 1}段槽身水面线推求`)
+            this.flumeLineCalcs[i].setIndex(i + 2);
+            b.p().t('该段计算长度为：').varVal(this.flumeLineCalcs[i].L)
+            .t('。由上一步计算知，该段下游断面水深为：').varVal(this.flumeLineCalcs[i].h1)
+            .t('。代入方程组，解能量方程，得到该段上游断面水深').varVal(this.flumeLineCalcs[i].h2).t('。验算过程如下：');
+            b.procedure().equation(...this.flumeLineCalcs[i].prcEq());
+            b.p().t('其中，断面水力要素计算过程如下：');
+            b.procedure().formula(...this.flumeLineCalcs[i].prcFml());
+        }
 
         // --进口渐变段水面线计算
         b.h(2).t('进口渐变段水面线推求');
-        this.inletLineCalc.setIndex(3);
-        b.p().t('解能量方程，得到上游渐变段进口水深').varVal(this.inletLineCalc.h2).t('。相关水力要素计算过程如下：');
-        b.procedure().formula(...FindLineH.fmlPrc(this.inletLineCalc));
-        b.p().t('代入能量方程验证过程如下：');
-        b.procedure().equation(...FindLineH.eqPrc(this.inletLineCalc));
+        this.inletLineCalc.setIndex(this.flumeLineCalcs.length + 2);
+        b.p().t('由上一步计算知，槽身出口水深为：').varVal(this.inletLineCalc.h1)
+        .t('。解能量方程，得到上游渐变段进口水深').varVal(this.inletLineCalc.h2).t('。验算过程如下：');
+        b.procedure().equation(...this.inletLineCalc.prcEq());
+        b.p().t('其中，断面水力要素计算过程如下：');
+        b.procedure().formula(...this.inletLineCalc.prcFml());
 
         // --水面是否壅高
-        b.h(2).t('上游渠道水面壅高复核');
-        b.p().t('根据流量计算公式，可以试算得到通过加大流量').varVal(Qj).t('时，上游渠道内水深').varVal(this.upCheckQj.h.subs('j')).t('。验算如下：');
-        b.procedure().formula(...FindH.prc(this.upCheckQj));
+        b.h(2).t('水面壅高复核');
+
+        b.h(3).t('槽身水面壅高复核');
+        b.p().t('根据流量计算公式，可以试算得到通过加大流量').varVal(Qj).t('时，槽身内水深').varVal(this.riseFlumeCalc.h.subs('j')).t('。验算如下：');
+        b.procedure().formula(...this.riseFlumeCalc.prcH());
         b.p().t('壅高验算如下：')
-        b.p().equationVal(LE(this.inletLineCalc.h2.subs(''), mul(1.03, this.upCheckQj.h.subs('j'))));
-        if (LE(this.inletLineCalc.h2.subs(''), mul(1.03, this.upCheckQj.h.subs('j'))).calc()) {
+        b.procedure().equation(...this.riseFlumeCalc.prcRise());
+        if (!this.riseFlumeCalc.rised) {
+            b.p().t('水面壅高符合规范要求。');
+        } else {
+            b.p().t('水面壅高不符合规范要求。')
+        }
+
+        b.h(3).t('上游渠道水面壅高复核');
+        b.p().t('根据流量计算公式，可以试算得到通过加大流量').varVal(Qj).t('时，上游渠道内水深').varVal(this.riseInletCalc.h.subs('j')).t('。验算如下：');
+        b.procedure().formula(...this.riseInletCalc.prcH());
+        b.p().t('壅高验算如下：')
+        b.procedure().equation(...this.riseInletCalc.prcRise());
+        if (!this.riseInletCalc.rised) {
             b.p().t('水面壅高符合规范要求。');
         } else {
             b.p().t('水面壅高不符合规范要求。')
@@ -442,24 +483,23 @@ export class HydroCalculator {
 export function hydroCalcDemo() {
     const calc = new HydroCalculator()
 
-    calc.setFlumeSect('ushell', 2000, 0.014);
-    calc.findW(20, 23);
+    calc.setQ(20, 23);
+
+    calc.setFlumeUShell(2000, 0.014);
+    calc.findW();
     calc.setFlumeW(2);
 
-    calc.findHsHj(0.2);
-    calc.setFlumeH(3.8);
+    calc.setSurmount(0.2);
+    calc.findSurmount();
 
-    calc.setUpSect('trape', 9000, 0.015, { b: 5.5, m: 0.5 });
-    calc.setDownSect('trape', 15000, 0.017, { b: 4.0, m: 1.25 });
+    calc.setUpTrape(9000, 0.015, 5.5, 0.5);
+    calc.setDownTrape(9000, 0.017, 4, 1.25);
     calc.setFloor(15, 200, 15, 0.014, 0.014, 0.3, 0.5, 255);
-    calc.calcZ();
-    calc.calcDZ();
-    calc.calcN();
+    calc.calcFloor();
 
-    calc.findOutletH();
-    calc.findFLumeH();
-    calc.findInletH();
-    calc.findUpCheck();
+    calc.setLine(200, 199.9, 200, 199.9);
+    calc.calcLine();
+    calc.calcRise();
 
     calc.makeReport();
 }

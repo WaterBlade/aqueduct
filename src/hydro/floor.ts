@@ -2,7 +2,7 @@ import { V,  FV, formula, add, mul, sub, pow, inv, minus, div, fdiv, Variable, F
 import { Calculation, Environment } from "../common";
 import Unit from '../unit';
 import Const from '../constVariable';
-import { SectionCalc, SectionEnv} from "./section";
+import { SectionCalc, SectionEnv, TrapeCalc, RectCalc, UShellCalc, TrapeEnv, RectEnv, UShellEnv} from "./section";
 
 export class FloorCalc extends Calculation{
     // 整体参数
@@ -116,10 +116,33 @@ export class FloorCalc extends Calculation{
         add(this.N2, this.h, this.Z3, minus(this.h2))
     )
 
-    constructor(public up: SectionCalc, public flume: SectionCalc, public down: SectionCalc){super();}
+    constructor(public up: TrapeCalc | RectCalc, public flume: UShellCalc | RectCalc, public down: TrapeCalc | RectCalc){
+        super();
+        this.up.h.subs(1);
+        this.up.A.subs(1);
+        this.up.R.subs(1);
+        this.up.v.subs(1);
+        this.up.i.subs(1);
+        this.up.n.subs(3);
+        this.up.b.subs(1);
+        if(this.up instanceof TrapeCalc) this.up.m.subs(1);
+
+        this.flume.A.subs(2);
+        this.flume.R.subs(2);
+
+        this.down.h.subs(2);
+        this.down.A.subs(3);
+        this.down.R.subs(3);
+        this.down.v.subs(2);
+        this.down.i.subs(3);
+        this.down.n.subs(4);
+        this.down.b.subs(3);
+        if(this.down instanceof TrapeCalc) this.down.m.subs(3);
+    }
 
     // 计算式
     calc(Q: number){
+
         this.Q.val(Q);
         this.i.val(this.flume.i.Value);
 
@@ -141,7 +164,7 @@ export class FloorCalc extends Calculation{
 
         this.v1.val(this.up.vFormula.calc());
         this.v.val(this.flume.vFormula.calc());
-        this.v2.val(this.flume.vFormula.calc());
+        this.v2.val(this.down.vFormula.calc());
 
         this.J12Formula.calc();
         this.J34Formula.calc();
@@ -214,22 +237,12 @@ export class FloorCalc extends Calculation{
     }
     // 计算过程
     prcZUp(){
-        this.up.h.subs(1);
-        this.up.A.subs(1);
-        this.up.R.subs(1);
-        this.up.v.subs(1);
         return [...this.up.prcH(), this.up.vFormula];
     }
     prcZFlume(){
-        this.flume.A.subs(2);
-        this.flume.R.subs(2);
         return [...this.flume.prcH(), this.flume.vFormula];
     }
     prcZDown(){
-        this.down.h.subs(2);
-        this.down.A.subs(3);
-        this.down.R.subs(3);
-        this.down.v.subs(2);
         return [...this.down.prcH(), this.down.vFormula];
     }
     prcZ(){
@@ -263,7 +276,7 @@ export class FloorEnv extends Environment{
     n2: number;
     ksi1: number;
     ksi2: number;
-    constructor(public up: SectionEnv, public flume: SectionEnv, public down: SectionEnv){super();}
+    constructor(public up: TrapeEnv | RectEnv, public flume: UShellEnv | RectEnv, public down: TrapeEnv | RectEnv){super();}
     genCalc(){
         const calc = new FloorCalc(this.up.genCalc(), this.flume.genCalc(), this.down.genCalc());
         this.initCalc(calc);

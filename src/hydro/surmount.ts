@@ -1,4 +1,4 @@
-import { Calculation, Environment } from "common";
+import { Calculation, Environment } from "../common";
 
 import { V, formula, add, div, max, Formula } from "docx";
 import Unit from '../unit';
@@ -7,8 +7,8 @@ import { SectionCalc, UShellCalc, RectEnv, UShellEnv } from "./section";
 export abstract class SurmountCalc extends Calculation {
     hs = V('h').subs('s').info('通过设计流量时的水深').unit(Unit.m);
     hj = V('h').subs('j').info('通过加大流量时的水深').unit(Unit.m);
-    Hs = V('H').info('通过设计流量时的最小净高').unit(Unit.m);
-    Hj = V('H').info('通过加大流量时的最小净高').unit(Unit.m);
+    Hs = V('H').subs('s').info('通过设计流量时的最小净高').unit(Unit.m);
+    Hj = V('H').subs('j').info('通过加大流量时的最小净高').unit(Unit.m);
     t = V('t').info('拉杆高度').unit(Unit.m);
     H = V('H').info('槽内净高').unit(Unit.m);
 
@@ -68,11 +68,13 @@ export class UShellSurCalc extends SurmountCalc {
 
 export class SurmountEnv extends Environment{
     t: number;
+    H: number;
     constructor(public sectionEnv: RectEnv | UShellEnv){
         super();
     }
     initCalc(calc: SurmountCalc){
         calc.t.val(this.t);
+        calc.H.val(this.H);
     }
     genCalc(){
         if(this.sectionEnv instanceof RectEnv){

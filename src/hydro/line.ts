@@ -22,8 +22,8 @@ export class LineCalc extends Calculation {
 
     setIndex(i: number) {
         const k = `${i}`;
-        const k1 = `${i+1}`;
-        const kk1 = `${i}-${i+1}`;
+        const k1 = `${i + 1}`;
+        const kk1 = `${i}-${i + 1}`;
 
         this.L.subs(kk1);
         this.ksi.subs(kk1);
@@ -37,8 +37,8 @@ export class LineCalc extends Calculation {
         this.R2.subs(k1);
         this.A1.subs(k);
         this.A2.subs(k1);
-        this.hs.subs('s:'+kk1);
-        this.hf.subs('f:'+kk1);
+        this.hs.subs('s:' + kk1);
+        this.hf.subs('f:' + kk1);
 
         this.down.h.subs(k);
         this.down.A.subs(k);
@@ -103,31 +103,28 @@ export class LineCalc extends Calculation {
     calc(Q: number, h?: number) {
         const up = this.up;
         const down = this.down;
-        if(h){
+        if (h) {
             down.h.val(h);
-        }else{
+            down.AFormula.calc();
+            down.RFormula.calc();
+        } else {
             down.calcH(Q);
         }
 
         this.Q.val(Q);
-        up.Q.val(Q);
+        this.h1.val(down.h.Value);
+        this.R1.val(down.R.Value);
+        this.A1.val(down.A.Value);
 
+        up.Q.val(Q);
         const left = up.calcHk(Q);
 
         return solveByBisect(left + 0.0001, 10, 0.0001, (h) => {
-            this.h1.val(down.h.Value);
             this.h2.val(h);
             up.h.val(h);
 
-            up.AFormula.calc();
-            up.RFormula.calc();
-            down.AFormula.calc();
-            down.RFormula.calc();
-
-            this.R1.val(up.R.Value);
-            this.R2.val(down.R.Value);
-            this.A1.val(up.A.Value);
-            this.A2.val(down.A.Value);
+            this.R2.val(up.RFormula.calc());
+            this.A2.val(up.AFormula.calc());
 
             this.J12Formula.calc();
             this.hsFormula.calc();
@@ -200,8 +197,8 @@ export class LineEnv extends Environment {
     z1: number;
     z2: number;
     h: number;
-    constructor(public down: SectionEnv, public up: SectionEnv){super();}
-    initCalc(calc: LineCalc){
+    constructor(public down: SectionEnv, public up: SectionEnv) { super(); }
+    initCalc(calc: LineCalc) {
         calc.L.val(this.L);
         calc.n.val(this.n);
         calc.ksi.val(this.ksi);
@@ -209,7 +206,7 @@ export class LineEnv extends Environment {
         calc.z2.val(this.z2);
         calc.down.h.val(this.h);
     }
-    genCalc(){
+    genCalc() {
         const calc = new LineCalc(this.down.genCalc(), this.up.genCalc());
         this.initCalc(calc);
         return calc;
