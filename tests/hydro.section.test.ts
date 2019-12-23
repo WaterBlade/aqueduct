@@ -1,4 +1,4 @@
-import { UShellCalc, RectCalc, TrapeCalc, SectionCalc } from "../src/hydro/section";
+import { UShellCalc, RectCalc, TrapeCalc} from "../src/hydro/section";
 
 import { describe, it } from "mocha";
 import { expect } from "chai";

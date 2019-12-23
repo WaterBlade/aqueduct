@@ -174,6 +174,7 @@ export class HydroCalculator {
         outlet.z1 = N4;
         outlet.z2 = N2;
         this.outletLineEnv = outlet;
+        this.flumeLinesEnv = [];
 
         const count = Math.round(this.floorEnv.L / this.lineCalcLength);
         for (let i = 0; i < count; i++) {
@@ -198,6 +199,7 @@ export class HydroCalculator {
 
         this.outletLineCalc = this.outletLineEnv.genCalc();
         this.outletLineCalc.calc(Qj);
+        this.flumeLineCalcs = [];
 
         let hj = this.outletLineCalc.up.h.Value;
 
