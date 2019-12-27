@@ -2,7 +2,7 @@ import { Calculation} from "../common";
 import Unit from "../unit";
 import Const from "../constVariable";
 import { PscSectionCalc } from "./section";
-import { Variable, V, formula, mul, Formula, add, sub } from "docx";
+import {  V, formula, mul, Formula,  sub } from "docx";
 
 export class PscLoadCalc extends Calculation{
     Gc = V('G').subs('c').info('槽身混凝土线荷载').unit(Unit.kN);

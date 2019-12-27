@@ -1,4 +1,5 @@
-import { Calculation, CONST, solveByBisect, Environment } from "../common";
+import { Calculation, solveByBisect, Environment } from "../common";
+import Const from "../constVariable";
 import Unit from '../unit';
 import { V, EQ, add, div, pow, mul, Relation, inv, abs, sub, formula, fdiv } from "docx";
 import { SectionCalc, SectionEnv } from "./section";
@@ -56,7 +57,7 @@ export class LineCalc extends Calculation {
             this.h1,
             div(
                 pow(this.Q, 2),
-                mul(2, CONST.g, pow(this.A1, 2))
+                mul(2, Const.g, pow(this.A1, 2))
             ),
             this.hs,
             this.hf
@@ -66,7 +67,7 @@ export class LineCalc extends Calculation {
             this.h2,
             div(
                 pow(this.Q, 2),
-                mul(2, CONST.g, pow(this.A2, 2))
+                mul(2, Const.g, pow(this.A2, 2))
             )
         ),
     ).setRightLong().setLeftLong();
@@ -74,7 +75,7 @@ export class LineCalc extends Calculation {
         this.hs,
         mul(
             this.ksi,
-            inv(mul(2, CONST.g)),
+            inv(mul(2, Const.g)),
             abs(
                 sub(
                     div(pow(this.Q, 2), pow(this.A1, 2)),
